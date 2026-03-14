@@ -54,6 +54,10 @@ class PipeModel(BaseModel):
         le=1.0, 
         description="焊缝折减系数 φ"
     )
+    weld_type: str = Field(
+        default="自动焊",
+        description="焊缝类型: 自动焊/手工焊/焊缝质量等级"
+    )
     
     # 钢材参数
     steel_grade: str = Field(default="Q235", description="钢材牌号")

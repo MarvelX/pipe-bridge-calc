@@ -16,6 +16,7 @@ from calculation.stress_calc import calculate_stress, calculate_support_reaction
 from calculation.deflection_calc import calculate_deflection, get_allowable_deflection
 from calculation.stability_calc import calculate_ring_stability, get_stiffener_spacing
 from calculation.pile_calc import PileModel, SoilLayer, calculate_pile_capacity
+from calculation.book_calc import generate_calculation_book, format_calculation_book
 
 
 st.set_page_config(
@@ -107,6 +108,24 @@ def main():
         index=0,
         help="CECS 214-2006 表3.2.1"
     )
+    
+    # 焊缝参数
+    st.sidebar.subheader("焊缝参数")
+    weld_type = st.sidebar.selectbox(
+        "焊缝类型",
+        options=["自动焊", "手工焊", "焊缝质量等级Ⅲ", "焊缝质量等级Ⅱ", "焊缝质量等级Ⅰ"],
+        index=0,
+        help="CECS 214-2006 第7.1.1条: 不同焊缝类型对应不同折减系数"
+    )
+    # 焊缝折减系数映射
+    weld_reduction_map = {
+        "自动焊": 0.9,
+        "手工焊": 0.85,
+        "焊缝质量等级Ⅲ": 0.85,
+        "焊缝质量等级Ⅱ": 0.9,
+        "焊缝质量等级Ⅰ": 0.95
+    }
+    weld_reduction = weld_reduction_map[weld_type]
     
     # ========== 荷载参数 ==========
     st.sidebar.subheader("📊 荷载参数")
@@ -466,19 +485,66 @@ def main():
     
     # ========== Tab 5: 计算书 ==========
     with tab5:
-        st.header("计算书")
-        st.info("📝 计算书生成功能开发中...")
-        st.markdown("""
-        ### 计算书将包含:
-        - 工程概况
-        - 设计依据
-        - 荷载计算
-        - 内力计算
-        - 应力计算
-        - 强度验算
-        - 挠度验算
-        - 稳定验算
-        """)
+        st.header("计算书生成")
+        st.markdown("**依据: CECS 214-2006《自承式给水钢管跨越结构设计规程》**")
+        
+        project_name = st.text_input("工程名称", value="自承式钢管跨越结构工程")
+        
+        if st.button("生成完整计算书", type="primary", key="book_btn"):
+            # 创建完整模型
+            pipe = create_pipe(
+                pipe_type, span_m, 
+                support_type=support_type, 
+                friction_coefficient=friction_coef,
+                support_half_angle=support_half_angle,
+                weld_reduction_coefficient=weld_reduction
+            )
+            pipe.steel_grade = steel_grade
+            pipe.wall_thickness_mm = wall_thickness
+            pipe.weld_type = weld_type
+            
+            load = LoadModel(
+                self_weight_amplification=self_weight_amp,
+                anti_corrosion_weight=anti_corrosion,
+                additional_load=additional_load,
+                internal_pressure_MPa=internal_pressure,
+                wind_load_kN=wind_load,
+                temperature_load_C=temperature_diff,
+                temperature_stress_reduction=temp_stress_reduction,
+                construction_load_kN=construction_load,
+                importance_factor=importance_factor
+            )
+            
+            # 计算所有结果
+            load_result = calculate_loads(pipe, load)
+            reaction = calculate_support_reaction(pipe, load_result.工况1_total_kN)
+            stress_result = calculate_stress(pipe, load, reaction)
+            deflection_result = calculate_deflection(pipe, load_result)
+            stability_result = calculate_ring_stability(pipe, internal_pressure)
+            
+            # 生成计算书
+            book = generate_calculation_book(
+                pipe=pipe,
+                load=load,
+                load_result=load_result,
+                stress_result=stress_result,
+                deflection_result=deflection_result,
+                stability_result=stability_result,
+                project_name=project_name
+            )
+            
+            book_text = format_calculation_book(book)
+            
+            # 显示计算书
+            st.markdown(book_text)
+            
+            # 下载按钮
+            st.download_button(
+                label="📥 下载计算书 (Markdown)",
+                data=book_text,
+                file_name=f"计算书_{pipe.name}_{pipe.span_m}m.md",
+                mime="text/markdown"
+            )
 
 
 if __name__ == "__main__":
