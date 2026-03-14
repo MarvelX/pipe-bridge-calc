@@ -46,8 +46,17 @@ class StressResult:
         self.formula_refs = {}       # 公式引用字典
 
 
-def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float, 
-                   horizontal_load_N: float = 0) -> StressResult:
+def calculate_stress(pipe: PipeModel, load: LoadModel, 
+                   vertical_load_kN: float, horizontal_load_kN: float = 0) -> StressResult:
+    """
+    计算管道应力 - CECS 214-2006 第7.2节
+    
+    Args:
+        pipe: 管道模型
+        load: 荷载模型
+        vertical_load_kN: 竖向线荷载 (kN/m)
+        horizontal_load_kN: 水平线荷载 (kN/m)
+    """
     """
     计算管道应力 - CECS 214-2006 第7.2节
     
@@ -69,7 +78,9 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float,
     f_reduced = pipe.reduced_strength_MPa  # 焊缝折减后设计强度 MPa
     
     p = load.internal_pressure_MPa  # 内水压 MPa = N/mm²
-    R = reaction_force_N            # 支座反力 N
+    # 支座反力 R = qL/2 (简支梁)
+    # 传入的是线荷载(kN/m)，需要乘以跨长再除以2
+    R_y = vertical_load_kN * pipe.span_m / 2 * 1000  # N
     L = pipe.span_m * 1000            # 跨长 mm
     theta = pipe.support_half_angle   # 支承半角 (度)
     zeta = load.temperature_stress_reduction  # 温度应力折减系数
@@ -87,20 +98,18 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float,
     
     # 2.1 竖向弯曲应力 (7.2.2-1): σ = My/W
     # 正确公式: My = qyL²/8 (简支梁跨中最大弯矩)
-    # 其中 qy = 竖向荷载/跨长, L = 跨长
-    # 注意：必须用荷载计算，不能用反力！
-    total_load_N = reaction_force_N * 2  # 总荷载 N (反力×2)
-    q_vertical_N_per_mm = total_load_N / (pipe.span_m * 1000)  # N/mm
+    # 其中 qy = 竖向线荷载(kN/m), L = 跨长
+    # 需要转换为 N/mm
+    q_vertical = vertical_load_kN  # kN/m = N/mm (数值相同)
     L_mm = pipe.span_m * 1000  # mm
-    My = q_vertical_N_per_mm * L_mm**2 / 8  # N·mm (竖向弯矩)
+    My = q_vertical * L_mm**2 / 8  # N·mm (竖向弯矩)
     result.sigma_x_M = My / W
     
     # 2.1b 水平弯曲应力 (风荷载产生的水平弯矩)
     # Mz = qzL²/8 (简支梁跨中最大弯矩)
-    if horizontal_load_N > 0:
-        q_horizontal_N_per_mm = horizontal_load_N / (pipe.span_m * 1000)  # N/mm
-        Mz = q_horizontal_N_per_mm * L_mm**2 / 8  # N·mm (水平弯矩)
-        # 水平弯曲产生的应力 (假设水平抗弯刚度与竖向相同)
+    if horizontal_load_kN > 0:
+        q_horizontal = horizontal_load_kN  # kN/m = N/mm
+        Mz = q_horizontal * L_mm**2 / 8  # N·mm (水平弯矩)
         result.sigma_x_M_horizontal = Mz / W
     else:
         result.sigma_x_M_horizontal = 0
@@ -139,7 +148,7 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float,
     
     # 2.4 摩擦应力 (7.2.2-5): σ = μR/A
     mu = pipe.friction_coefficient  # 摩擦系数
-    result.sigma_x_friction = mu * R / A
+    result.sigma_x_friction = mu * R_y / A
     result.formula_refs['sigma_x_friction'] = {
         'formula': 'σx,μ = μR / A',
         'ref': 'CECS 214-2006 公式(7.2.2-5)',
@@ -155,7 +164,7 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float,
     # ========== 3. 剪应力计算 (规范7.2.3) ==========
     
     # 3.1 平均剪应力 (7.2.3-1): τ = V/A
-    V = R / 2  # 剪力 N (简支梁支座处)
+    V = R_y / 2  # 剪力 N (简支梁支座处)
     result.tau_avg = V / A
     result.formula_refs['tau_avg'] = {
         'formula': 'τ = V / A',

@@ -56,8 +56,9 @@ def main():
         help="管道壁厚，可根据需要调整"
     )
     
-    # 跨径
-    span_m = st.sidebar.number_input("跨径 L (m)", min_value=1.0, max_value=50.0, value=30.0, step=0.5)
+    # 跨径 (仅支持单跨简支梁)
+    st.sidebar.markdown("**⚠️ 当前仅支持单跨简支梁**")
+    span_m = st.sidebar.number_input("跨径 L (m)", min_value=1.0, max_value=50.0, value=30.0, step=0.5, disabled=False)
     
     # 支承参数
     st.sidebar.subheader("支承参数")
@@ -399,8 +400,9 @@ def main():
             reaction = calculate_support_reaction(pipe, load_result.工况1_竖向_总计)
             
             # 计算应力
-            horizontal_N = load_result.工况1_水平荷载 * 1000  # 转换为N
-            stress_result = calculate_stress(pipe, load, reaction, horizontal_N)
+            vertical_line_load = load_result.工况1_竖向_总计 / pipe.span_m
+            horizontal_line_load = load_result.工况1_水平荷载 / pipe.span_m if pipe.span_m > 0 else 0
+            stress_result = calculate_stress(pipe, load, vertical_line_load, horizontal_line_load)
             
             # 环向应力
             st.markdown("#### 3.1 环向应力 σθ")
@@ -509,7 +511,7 @@ def main():
         if st.button("计算稳定", type="primary", key="stability_btn"):
             pipe = create_pipe(pipe_type, span_m)
             
-            stability_result = calculate_ring_stability(pipe, internal_pressure)
+            stability_result = calculate_ring_stability(pipe, load_result.vacuum_kN)
             stiffener_spacing = get_stiffener_spacing(pipe, internal_pressure)
             
             col1, col2, col3 = st.columns(3)
@@ -562,10 +564,11 @@ def main():
             # 计算所有结果
             load_result = calculate_loads(pipe, load)
             reaction = calculate_support_reaction(pipe, load_result.工况1_竖向_总计)
-            horizontal_N = load_result.工况1_水平荷载 * 1000  # 转换为N
-            stress_result = calculate_stress(pipe, load, reaction, horizontal_N)
+            vertical_line_load = load_result.工况1_竖向_总计 / pipe.span_m
+            horizontal_line_load = load_result.工况1_水平荷载 / pipe.span_m if pipe.span_m > 0 else 0
+            stress_result = calculate_stress(pipe, load, vertical_line_load, horizontal_line_load)
             deflection_result = calculate_deflection(pipe, load_result)
-            stability_result = calculate_ring_stability(pipe, internal_pressure)
+            stability_result = calculate_ring_stability(pipe, load_result.vacuum_kN)
             
             # 生成计算书
             book = generate_calculation_book(
