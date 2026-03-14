@@ -19,6 +19,12 @@ class LoadModel(BaseModel):
     steel_density: float = Field(default=7850, description="钢材密度(kg/m³)")
     water_density: float = Field(default=1000, description="水密度(kg/m³)")
     
+    # ========== 管道自重相关系数 (规范4.2) ==========
+    self_weight_amplification: float = Field(
+        default=1.2, 
+        description="管道自重放大系数 K (考虑附件、保温层等)"
+    )
+    
     # ========== 可变作用 ==========
     # 内水压力 (规范4.3.2)
     internal_pressure_MPa: float = Field(
@@ -34,12 +40,26 @@ class LoadModel(BaseModel):
     # 温度作用 (规范4.3.4-4.3.5)
     temperature_load_C: float = Field(default=25, description="闭合温差(°C)")
     temperature_type: str = Field(default="焊接", description="连接方式:焊接/粘接/熔接")
+    temperature_stress_reduction: float = Field(
+        default=0.7, 
+        description="温度应力折减系数 ζ (规范7.2.2-4)"
+    )
     
     # 施工检修荷载 (规范4.3.6)
     construction_load_kN: float = Field(default=0, description="施工检修荷载(kN)")
     
     # 真空压力 (规范4.3.3)
     vacuum_pressure_MPa: float = Field(default=0.05, description="真空压力(MPa)")
+    
+    # ========== 防腐与附加荷载 (规范4.2) ==========
+    anti_corrosion_weight: float = Field(
+        default=0.15, 
+        description="防腐层重(kN/m)"
+    )
+    additional_load: float = Field(
+        default=0.5, 
+        description="附加荷载(kN/m) (含保温层、冰雪等)"
+    )
     
     # ========== 分项系数 (根据规范) ==========
     gamma_self_weight: float = Field(default=1.2, description="自重分项系数 γG")
@@ -62,14 +82,28 @@ class LoadModel(BaseModel):
 
 class LoadResult(BaseModel):
     """荷载计算结果"""
-    # 永久荷载标准值
+    # 每米管道自重 (kN/m)
+    self_weight_per_m: float = Field(description="每米管道自重(kN/m)")
+    
+    # 每米防腐层重 (kN/m)
+    anti_corrosion_per_m: float = Field(description="每米防腐层重(kN/m)")
+    
+    # 每米附加荷载 (kN/m)
+    additional_per_m: float = Field(description="每米附加荷载(kN/m)")
+    
+    # 每米管内水重 (kN/m)
+    water_weight_per_m: float = Field(description="每米管内水重(kN/m)")
+    
+    # 永久荷载标准值 (跨总重)
     self_weight_kN: float = Field(description="结构自重标准值(kN)")
     water_weight_kN: float = Field(description="管内水重标准值(kN)")
+    anti_corrosion_kN: float = Field(description="防腐层重标准值(kN)")
+    additional_kN: float = Field(description="附加荷载标准值(kN)")
     
     # 可变荷载标准值
     internal_pressure_kN: float = Field(description="内水压力标准值(kN)")
     wind_kN: float = Field(default=0, description="风荷载标准值(kN)")
-    temperature_kN: float = Field(default=0, description="温度作用(kN)")  # 应力形式
+    temperature_kN: float = Field(default=0, description="温度作用(kN)")
     construction_kN: float = Field(default=0, description="施工检修荷载标准值(kN)")
     vacuum_kN: float = Field(default=0, description="真空压力(kN)")
     

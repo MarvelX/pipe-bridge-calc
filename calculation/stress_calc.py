@@ -3,7 +3,7 @@
 平管强度计算 (第7.2节)
 """
 import math
-from models.pipe import PipeModel, SupportType
+from models.pipe import PipeModel
 from models.load import LoadModel
 
 
@@ -19,8 +19,9 @@ class StressResult:
         
         # ========== 轴向应力 σx ==========
         self.sigma_x_M = 0           # 竖向弯曲应力 (7.2.2-1): σ = M/W
-        self.sigma_x_Fw = 0          # 内水压轴向拉应力 (7.2.2-2,3): σ = N_H/A = γF(1-cosθ)/(2πrt)
+        self.sigma_x_Fw = 0          # 内水压轴向拉应力 (7.2.2-2,3): σ = N_H/A
         self.sigma_x_t = 0           # 温度应力 (7.2.2-4): σ = αEΔT
+        self.sigma_x_t_reduced = 0  # 折减后温度应力
         self.sigma_x_friction = 0    # 摩擦应力 (7.2.2-5): σ = μR/A
         self.sigma_x_total = 0      # 总轴向应力
         
@@ -58,10 +59,13 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float) 
     W = pipe.section_modulus_mm3    # 截面抵抗矩 mm³
     I = pipe.moment_of_inertia_mm4  # 惯性矩 mm⁴
     f = pipe.design_strength_MPa    # 钢材设计强度 MPa
+    f_reduced = pipe.reduced_strength_MPa  # 焊缝折减后设计强度 MPa
     
     p = load.internal_pressure_MPa  # 内水压 MPa = N/mm²
-    R = reaction_force_N            # 支座反力 N (已经是N)
+    R = reaction_force_N            # 支座反力 N
     L = pipe.span_m * 1000            # 跨长 mm
+    theta = pipe.support_half_angle   # 支承半角 (度)
+    zeta = load.temperature_stress_reduction  # 温度应力折减系数
     
     # ========== 1. 环向应力计算 (规范7.2.1) ==========
     # σθ = p·r / t
@@ -84,11 +88,12 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float) 
     }
     
     # 2.2 内水压产生的轴向拉应力 (7.2.2-2,3)
-    # 鞍式支承(θ=90°): N_H = γF
-    # σ = N_H / A = γF / A = γp·D / 2 (简化)
-    result.sigma_x_Fw = p * r / (2 * t)  # 对于鞍式支承
+    # 根据支承半角计算: σ = γF(1-cosθ)/(2πrt)
+    # 简化: 对于鞍式支承(θ=90°~120°): σ = p·r/(2t) × (1-cosθ)/π
+    theta_rad = math.radians(theta)
+    result.sigma_x_Fw = p * r / (2 * t) * (1 - math.cos(theta_rad)) / math.pi
     result.formula_refs['sigma_x_Fw'] = {
-        'formula': 'σx,F = γF(1-cosθ)/(2πrt) ≈ p·r/(2t) (鞍式支承)',
+        'formula': 'σx,F = p·r/(2t) × (1-cosθ)/π',
         'ref': 'CECS 214-2006 公式(7.2.2-2,3)',
         'desc': '设计内水压力产生的纵向拉应力'
     }
@@ -98,10 +103,12 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float) 
     E = 206000           # 弹性模量 MPa
     Delta_T = load.temperature_load_C  # 温差 °C
     result.sigma_x_t = alpha * E * abs(Delta_T)
+    # 折减后温度应力
+    result.sigma_x_t_reduced = result.sigma_x_t * zeta
     result.formula_refs['sigma_x_t'] = {
-        'formula': 'σx,T = α·E·ΔT = 12×10⁻⁶ × 206000 × ΔT',
+        'formula': 'σx,T = ζ·α·E·ΔT',
         'ref': 'CECS 214-2006 公式(7.2.2-4)',
-        'desc': '温度变化产生的温度应力'
+        'desc': f'温度变化产生的温度应力 (折减系数ζ={zeta})'
     }
     
     # 2.4 摩擦应力 (7.2.2-5): σ = μR/A
@@ -113,10 +120,10 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float) 
         'desc': '支座摩擦产生的纵向应力'
     }
     
-    # 2.5 总轴向应力
+    # 2.5 总轴向应力 (使用折减后温度应力)
     result.sigma_x_total = (result.sigma_x_M + 
                            result.sigma_x_Fw + 
-                           result.sigma_x_t + 
+                           result.sigma_x_t_reduced + 
                            result.sigma_x_friction)
     
     # ========== 3. 剪应力计算 (规范7.2.3) ==========
@@ -155,15 +162,17 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float) 
     }
     
     # ========== 5. 强度验算 ==========
-    # f = 钢材设计强度, γ0 = 重要性系数
+    # f' = φf (焊缝折减后设计强度)
     gamma_0 = load.importance_factor
-    allowable_stress = 0.9 * f / gamma_0  # 组合荷载效应设计值
+    allowable_stress = 0.9 * f_reduced / gamma_0  # 组合荷载效应设计值
     
     result.formula_refs['check'] = {
-        'formula': 'σ ≤ 0.9f/γ0',
-        'ref': 'CECS 214-2006 公式(5.2.2-1)',
+        'formula': 'σ ≤ 0.9φf/γ0',
+        'ref': 'CECS 214-2006 公式(7.1.1)',
         'desc': '强度验算条件',
-        'allowable': f'{allowable_stress:.1f} MPa'
+        'allowable': f'{allowable_stress:.1f} MPa',
+        'f_reduced': f'{f_reduced:.1f} MPa',
+        'phi': f'{pipe.weld_reduction_coefficient}'
     }
     
     result.is_safe = result.combined_stress <= allowable_stress
@@ -178,7 +187,6 @@ def calculate_support_reaction(pipe: PipeModel, total_load_kN: float) -> float:
     对于简支梁: R = qL/2 = 总荷载/2
     返回单位: N
     """
-    # 总荷载单位是 kN，转为 N
     return total_load_kN * 1000 / 2  # N
 
 

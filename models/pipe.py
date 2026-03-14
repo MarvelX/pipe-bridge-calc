@@ -37,7 +37,23 @@ class PipeModel(BaseModel):
     span_m: float = Field(gt=0, description="跨径(m)")
     span_count: int = Field(default=1, ge=1, description="跨数")
     support_type: SupportType = Field(default=SupportType.SADDLE, description="支承方式")
-    friction_coefficient: float = Field(default=0.3, description="摩擦系数")
+    friction_coefficient: float = Field(default=0.3, description="摩擦系数 μ")
+    
+    # 支承参数 (规范7.2.2)
+    support_half_angle: float = Field(
+        default=120.0, 
+        ge=0, 
+        le=180, 
+        description="支承半角 θ (°)"
+    )
+    
+    # 焊缝参数 (规范7.1.1)
+    weld_reduction_coefficient: float = Field(
+        default=0.9, 
+        ge=0.5, 
+        le=1.0, 
+        description="焊缝折减系数 φ"
+    )
     
     # 钢材参数
     steel_grade: str = Field(default="Q235", description="钢材牌号")
@@ -86,6 +102,11 @@ class PipeModel(BaseModel):
         }
         return strength_map.get(self.steel_grade, 215)
     
+    @property
+    def reduced_strength_MPa(self) -> float:
+        """焊缝折减后的设计强度 f' = φf (规范7.1.1)"""
+        return self.weld_reduction_coefficient * self.design_strength_MPa
+    
     class Config:
         use_enum_values = True
 
@@ -108,7 +129,9 @@ STANDARD_PIPES = {
 
 
 def create_pipe(pipe_type: str, span_m: float, span_count: int = 1, 
-               support_type: str = "鞍式支承", friction_coefficient: float = 0.3) -> PipeModel:
+               support_type: str = "鞍式支承", friction_coefficient: float = 0.3,
+               support_half_angle: float = 120.0, 
+               weld_reduction_coefficient: float = 0.9) -> PipeModel:
     """创建标准管道"""
     spec = STANDARD_PIPES.get(pipe_type, STANDARD_PIPES["DN1000"])
     return PipeModel(
@@ -118,5 +141,7 @@ def create_pipe(pipe_type: str, span_m: float, span_count: int = 1,
         span_m=span_m,
         span_count=span_count,
         support_type=SupportType(support_type) if support_type in [s.value for s in SupportType] else SupportType.SADDLE,
-        friction_coefficient=friction_coefficient
+        friction_coefficient=friction_coefficient,
+        support_half_angle=support_half_angle,
+        weld_reduction_coefficient=weld_reduction_coefficient
     )
