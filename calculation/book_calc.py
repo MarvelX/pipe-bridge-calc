@@ -248,7 +248,7 @@ $$\\sigma = \\sqrt{{\\sigma_x^2 + \\sigma_\\theta^2 - \\sigma_x \\cdot \\sigma_\
 """
 
     # 添加挠度计算结果
-    if deflection_result:
+    if book.deflection_result:
         text += f"""
 ### 7.2 挠度计算结果
 
@@ -270,7 +270,7 @@ $$\\sigma = \\sqrt{{\\sigma_x^2 + \\sigma_\\theta^2 - \\sigma_x \\cdot \\sigma_\
 """
 
     # 添加稳定计算结果
-    if stability_result:
+    if book.stability_result:
         text += f"""
 ---
 
@@ -311,10 +311,10 @@ $$\\sigma = \\sqrt{{\\sigma_x^2 + \\sigma_\\theta^2 - \\sigma_x \\cdot \\sigma_\
 | 支座强度 | {'✅ 通过' if sr.is_safe_support else '❌ 不通过'} | 安全系数 {sr.safety_factor_support:.2f} |
 """
     
-    if deflection_result:
+    if book.deflection_result:
         text += f"| 挠度验算 | {'✅ 通过' if deflection_result.is_adequate else '❌ 不通过'} | |\n"
     
-    if stability_result:
+    if book.stability_result:
         text += f"| 稳定验算 | {'✅ 通过' if stability_result.is_stable else '⚠️ 需加劲环'} | |\n"
     
     text += f"""
