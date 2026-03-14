@@ -1,0 +1,83 @@
+"""
+荷载模型 - 符合CECS 214-2006规范
+"""
+from pydantic import BaseModel, Field
+from typing import Optional
+from enum import Enum
+import math
+
+
+class LoadCombinationType(str, Enum):
+    COMBINATION_1 = "组合1"  # 主要组合
+    COMBINATION_2 = "组合2"  # 施工检修组合
+
+
+class LoadModel(BaseModel):
+    """荷载参数 - 符合CECS 214-2006规范"""
+    
+    # ========== 永久作用 ==========
+    steel_density: float = Field(default=7850, description="钢材密度(kg/m³)")
+    water_density: float = Field(default=1000, description="水密度(kg/m³)")
+    
+    # ========== 可变作用 ==========
+    # 内水压力 (规范4.3.2)
+    internal_pressure_MPa: float = Field(
+        default=0.8, 
+        ge=0.5,  # 规范要求不小于0.9MPa
+        description="设计内水压力(MPa)"
+    )
+    
+    # 风荷载 (规范4.3.1)
+    wind_load_kN: float = Field(default=0, description="风荷载(kN)")
+    wind_pressure_kPa: float = Field(default=0.5, description="风压标准值(kPa)")
+    
+    # 温度作用 (规范4.3.4-4.3.5)
+    temperature_load_C: float = Field(default=25, description="闭合温差(°C)")
+    temperature_type: str = Field(default="焊接", description="连接方式:焊接/粘接/熔接")
+    
+    # 施工检修荷载 (规范4.3.6)
+    construction_load_kN: float = Field(default=0, description="施工检修荷载(kN)")
+    
+    # 真空压力 (规范4.3.3)
+    vacuum_pressure_MPa: float = Field(default=0.05, description="真空压力(MPa)")
+    
+    # ========== 分项系数 (根据规范) ==========
+    gamma_self_weight: float = Field(default=1.2, description="自重分项系数 γG")
+    gamma_water: float = Field(default=1.4, description="水重分项系数 γQ")
+    gamma_pressure: float = Field(default=1.4, description="内水压分项系数 γQ")
+    gamma_wind: float = Field(default=1.4, description="风荷载分项系数 γQ")
+    gamma_temp: float = Field(default=1.4, description="温度作用分项系数 γQ")
+    gamma_construction: float = Field(default=1.4, description="施工荷载分项系数 γQ")
+    gamma_vacuum: float = Field(default=1.4, description="真空压力分项系数 γQ")
+    
+    # ========== 组合系数 (规范) ==========
+    psi_wind: float = Field(default=0.6, description="风荷载组合系数 ψc")
+    psi_temp: float = Field(default=0.8, description="温度作用组合系数 ψc")
+    psi_construction: float = Field(default=0.5, description="施工检修组合系数 ψc")
+    psi_vacuum: float = Field(default=0.7, description="真空压力准永久系数")
+    
+    # ========== 结构重要性系数 ==========
+    importance_factor: float = Field(default=1.0, description="管道重要性系数 γ0")
+
+
+class LoadResult(BaseModel):
+    """荷载计算结果"""
+    # 永久荷载标准值
+    self_weight_kN: float = Field(description="结构自重标准值(kN)")
+    water_weight_kN: float = Field(description="管内水重标准值(kN)")
+    
+    # 可变荷载标准值
+    internal_pressure_kN: float = Field(description="内水压力标准值(kN)")
+    wind_kN: float = Field(default=0, description="风荷载标准值(kN)")
+    temperature_kN: float = Field(default=0, description="温度作用(kN)")  # 应力形式
+    construction_kN: float = Field(default=0, description="施工检修荷载标准值(kN)")
+    vacuum_kN: float = Field(default=0, description="真空压力(kN)")
+    
+    # 组合1: 主要组合 (1.2G + 1.4Q)
+    combination1_total_kN: float = Field(description="组合1总荷载(kN)")
+    
+    # 组合2: 施工检修组合 (无风)
+    combination2_total_kN: float = Field(description="组合2总荷载(kN)")
+    
+    # 组合3: 偶然组合 (地震等，可扩展)
+    combination3_total_kN: float = Field(default=0, description="组合3总荷载(kN)")
