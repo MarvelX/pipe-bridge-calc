@@ -284,38 +284,15 @@ def main():
             
             # 1.2 水平风荷载
             st.markdown("#### 1.2 水平风荷载 (kN)")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("风荷载标准值", f"{load_result.wind_horizontal_kN:.2f}")
-            with col2:
-                st.metric("风荷载效应", f"{load_result.工况1_水平荷载:.2f}")
+            col1 = st.columns(1)
+            st.metric("风荷载", f"{load_result.wind_horizontal_kN:.2f}")
             
-            # 1.3 荷载组合1
-            st.markdown("#### 1.3 荷载组合1 (基本组合)")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("竖向永久", f"{load_result.工况1_竖向永久:.2f} kN")
-            with col2:
-                st.metric("竖向可变", f"{load_result.工况1_竖向可变:.2f} kN")
-            with col3:
-                st.metric("水平风荷载", f"{load_result.工况1_水平荷载:.2f} kN")
-            
-            # 1.4 荷载组合2
-            st.markdown("#### 1.4 荷载组合2 (施工检修)")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("竖向永久", f"{load_result.工况2_竖向永久:.2f} kN")
-            with col2:
-                st.metric("竖向可变", f"{load_result.工况2_竖向可变:.2f} kN")
-            with col3:
-                st.metric("水平风荷载", f"{load_result.工况2_水平荷载:.2f} kN")
-            
-            # ========== 2. 内力计算 ==========
+            # ========== 2. 内力计算 (先算内力) ==========
             st.subheader("二、内力计算")
             st.markdown("**依据: CECS 214-2006 第6章**")
             
             # 2.1 竖向荷载内力
-            st.markdown("#### 2.1 竖向荷载产生的内力")
+            st.markdown("#### 2.1 竖向荷载内力 (工况1)")
             reaction_y = calculate_support_reaction(pipe, load_result.工况1_竖向_总计)
             shear_y = calculate_shear_force(pipe, load_result.工况1_竖向_总计)
             moment_y = calculate_bending_moment(pipe, load_result.工况1_竖向_总计)
@@ -329,7 +306,7 @@ def main():
                 st.metric("跨中弯矩 M_y", f"{moment_y/1e6:.2f} kN·m")
             
             # 2.2 水平风荷载内力
-            st.markdown("#### 2.2 水平风荷载产生的内力")
+            st.markdown("#### 2.2 水平风荷载内力")
             if load_result.工况1_水平荷载 > 0:
                 reaction_z = calculate_support_reaction(pipe, load_result.工况1_水平荷载)
                 shear_z = calculate_shear_force(pipe, load_result.工况1_水平荷载)
@@ -358,6 +335,32 @@ def main():
                 st.metric("水平弯矩 M_z", f"{moment_z/1e6:.2f} kN·m")
             with col3:
                 st.metric("合成弯矩 M", f"{moment_total/1e6:.2f} kN·m")
+            
+            # ========== 3. 荷载组合 (后算组合) ==========
+            st.subheader("三、荷载组合")
+            st.markdown("**依据: CECS 214-2006 第5章**")
+            
+            # 3.1 工况1
+            st.markdown("#### 3.1 工况1 (基本组合)")
+            st.caption("γG×永久 + γQ×可变 + γQ×ψ×风荷载")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("竖向永久", f"{load_result.工况1_竖向永久:.2f} kN")
+            with col2:
+                st.metric("竖向可变", f"{load_result.工况1_竖向可变:.2f} kN")
+            with col3:
+                st.metric("水平风荷载", f"{load_result.工况1_水平荷载:.2f} kN")
+            
+            # 3.2 工况2
+            st.markdown("#### 3.2 工况2 (施工检修)")
+            st.caption("γG×永久 + γQ×(可变+施工)，不计风")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("竖向永久", f"{load_result.工况2_竖向永久:.2f} kN")
+            with col2:
+                st.metric("竖向可变", f"{load_result.工况2_竖向可变:.2f} kN")
+            with col3:
+                st.metric("水平风荷载", f"{load_result.工况2_水平荷载:.2f} kN")
             
             reaction = reaction_y
             shear = shear_y
