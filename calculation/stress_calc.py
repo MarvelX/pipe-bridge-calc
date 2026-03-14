@@ -39,12 +39,14 @@ class StressResult:
         self.safety_factor = 0
 
 
-def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_kN: float) -> StressResult:
+def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float) -> StressResult:
     """
     计算管道应力 - CECS 214-2006 第7.2节
     
-    Returns:
-        StressResult: 包含所有应力计算结果及公式引用
+    Args:
+        pipe: 管道模型
+        load: 荷载模型
+        reaction_force_N: 支座反力，单位 N
     """
     result = StressResult()
     
@@ -58,7 +60,7 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_kN: float)
     f = pipe.design_strength_MPa    # 钢材设计强度 MPa
     
     p = load.internal_pressure_MPa  # 内水压 MPa = N/mm²
-    R = reaction_force_kN * 1000      # 支座反力 N
+    R = reaction_force_N            # 支座反力 N (已经是N)
     L = pipe.span_m * 1000            # 跨长 mm
     
     # ========== 1. 环向应力计算 (规范7.2.1) ==========
@@ -173,9 +175,11 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_kN: float)
 def calculate_support_reaction(pipe: PipeModel, total_load_kN: float) -> float:
     """
     计算支座反力
-    对于简支梁: R = qL/2
+    对于简支梁: R = qL/2 = 总荷载/2
+    返回单位: N
     """
-    return total_load_kN / 2
+    # 总荷载单位是 kN，转为 N
+    return total_load_kN * 1000 / 2  # N
 
 
 def calculate_shear_force(pipe: PipeModel, total_load_kN: float) -> float:
