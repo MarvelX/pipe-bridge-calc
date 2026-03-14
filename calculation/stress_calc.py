@@ -46,7 +46,8 @@ class StressResult:
         self.formula_refs = {}       # 公式引用字典
 
 
-def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float) -> StressResult:
+def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float, 
+                   horizontal_load_N: float = 0) -> StressResult:
     """
     计算管道应力 - CECS 214-2006 第7.2节
     
@@ -84,13 +85,26 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float) 
     
     # ========== 2. 轴向应力计算 (规范7.2.2) ==========
     
-    # 2.1 竖向弯曲应力 (7.2.2-1): σ = M/W
-    # 正确公式: M = qL²/8 (简支梁跨中最大弯矩)
-    # 其中 q = 总荷载/跨长, L = 跨长
-    q_N_per_mm = reaction_force_N / (pipe.span_m * 1000)  # N/mm
+    # 2.1 竖向弯曲应力 (7.2.2-1): σ = My/W
+    # 正确公式: My = qyL²/8 (简支梁跨中最大弯矩)
+    # 其中 qy = 竖向荷载/跨长, L = 跨长
+    q_vertical_N_per_mm = reaction_force_N / (pipe.span_m * 1000)  # N/mm
     L_mm = pipe.span_m * 1000  # mm
-    M = q_N_per_mm * L_mm**2 / 8  # N·mm
-    result.sigma_x_M = M / W
+    My = q_vertical_N_per_mm * L_mm**2 / 8  # N·mm (竖向弯矩)
+    result.sigma_x_M = My / W
+    
+    # 2.1b 水平弯曲应力 (风荷载产生的水平弯矩)
+    # Mz = qzL²/8 (简支梁跨中最大弯矩)
+    if horizontal_load_N > 0:
+        q_horizontal_N_per_mm = horizontal_load_N / (pipe.span_m * 1000)  # N/mm
+        Mz = q_horizontal_N_per_mm * L_mm**2 / 8  # N·mm (水平弯矩)
+        # 水平弯曲产生的应力 (假设水平抗弯刚度与竖向相同)
+        result.sigma_x_M_horizontal = Mz / W
+    else:
+        result.sigma_x_M_horizontal = 0
+    
+    # 总弯矩矢量合成 (My² + Mz²)^0.5
+    result.sigma_x_M_combined = math.sqrt(result.sigma_x_M**2 + result.sigma_x_M_horizontal**2)
     result.formula_refs['sigma_x_M'] = {
         'formula': 'σx,M = M / W',
         'ref': 'CECS 214-2006 公式(7.2.2-1)',
@@ -130,8 +144,8 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float) 
         'desc': '支座摩擦产生的纵向应力'
     }
     
-    # 2.5 总轴向应力 (使用折减后温度应力)
-    result.sigma_x_total = (result.sigma_x_M + 
+    # 2.5 总轴向应力 (使用合成后的弯曲应力)
+    result.sigma_x_total = (result.sigma_x_M_combined + 
                            result.sigma_x_Fw + 
                            result.sigma_x_t_reduced + 
                            result.sigma_x_friction)

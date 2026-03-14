@@ -298,7 +298,7 @@ def main():
             st.markdown("#### 1.3 荷载组合")
             col1, col2 = st.columns(2)
             with col1:
-                st.metric("工况1 (基本组合)", f"{load_result.工况1_total_kN:.2f} kN")
+                st.metric("工况1 (基本组合)", f"{load_result.工况1_竖向_总计:.2f} kN")
                 st.caption("1.2×永久 + 1.4×可变 + 1.4×风×ψ\n📐 CECS 214-2006 5.2.1")
             with col2:
                 st.metric("工况2 (施工检修)", f"{load_result.工况2_total_kN:.2f} kN")
@@ -308,9 +308,9 @@ def main():
             st.subheader("二、内力计算")
             st.markdown("**依据: CECS 214-2006 第6章**")
             
-            reaction = calculate_support_reaction(pipe, load_result.工况1_total_kN)
-            shear = calculate_shear_force(pipe, load_result.工况1_total_kN)
-            moment = calculate_bending_moment(pipe, load_result.工况1_total_kN)
+            reaction = calculate_support_reaction(pipe, load_result.工况1_竖向_总计)
+            shear = calculate_shear_force(pipe, load_result.工况1_竖向_总计)
+            moment = calculate_bending_moment(pipe, load_result.工况1_竖向_总计)
             
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -353,10 +353,11 @@ def main():
             
             # 计算荷载和内力
             load_result = calculate_loads(pipe, load)
-            reaction = calculate_support_reaction(pipe, load_result.工况1_total_kN)
+            reaction = calculate_support_reaction(pipe, load_result.工况1_竖向_总计)
             
             # 计算应力
-            stress_result = calculate_stress(pipe, load, reaction)
+            horizontal_N = load_result.工况1_水平荷载 * 1000  # 转换为N
+            stress_result = calculate_stress(pipe, load, reaction, horizontal_N)
             
             # 环向应力
             st.markdown("#### 3.1 环向应力 σθ")
@@ -517,8 +518,9 @@ def main():
             
             # 计算所有结果
             load_result = calculate_loads(pipe, load)
-            reaction = calculate_support_reaction(pipe, load_result.工况1_total_kN)
-            stress_result = calculate_stress(pipe, load, reaction)
+            reaction = calculate_support_reaction(pipe, load_result.工况1_竖向_总计)
+            horizontal_N = load_result.工况1_水平荷载 * 1000  # 转换为N
+            stress_result = calculate_stress(pipe, load, reaction, horizontal_N)
             deflection_result = calculate_deflection(pipe, load_result)
             stability_result = calculate_ring_stability(pipe, internal_pressure)
             

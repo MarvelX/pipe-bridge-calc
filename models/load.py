@@ -122,13 +122,15 @@ class LoadResult(BaseModel):
     # 工况1: 基本组合
     工况1_竖向永久: float = Field(default=0, description="工况1竖向永久作用(kN)")
     工况1_竖向可变: float = Field(default=0, description="工况1竖向可变作用(kN)")
-    工况1_水平荷载: float = Field(default=0, description="工况1水平荷载(kN)")
+    工况1_竖向_总计: float = Field(default=0, description="工况1竖向总荷载(kN)")
+    工况1_水平荷载: float = Field(default=0, description="工况1水平风荷载(kN)")
     工况1_total_kN: float = Field(default=0, description="工况1总荷载(kN)")
     
     # 工况2: 施工检修组合
     工况2_竖向永久: float = Field(default=0, description="工况2竖向永久作用(kN)")
     工况2_竖向可变: float = Field(default=0, description="工况2竖向可变作用(kN)")
-    工况2_水平荷载: float = Field(default=0, description="工况2水平荷载(kN)")
+    工况2_竖向_总计: float = Field(default=0, description="工况2竖向总荷载(kN)")
+    工况2_水平荷载: float = Field(default=0, description="工况2水平风荷载(kN)")
     工况2_total_kN: float = Field(default=0, description="工况2总荷载(kN)")
     
     # 兼容旧版本

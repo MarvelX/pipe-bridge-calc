@@ -80,11 +80,14 @@ def calculate_loads(pipe: PipeModel, load: LoadModel) -> LoadResult:
         load.gamma_vacuum * load.psi_vacuum * vacuum_kN
     )
     
-    # 水平荷载 (风荷载，分项系数1.4，组合系数ψc)
+    # 竖向总荷载 (用于计算竖向内力)
+    工况1_竖向_总计 = 工况1_竖向永久 + 工况1_竖向可变
+    
+    # 水平风荷载 (单独计算，用于水平内力)
     工况1_水平 = load.gamma_wind * load.psi_wind * wind_horizontal_kN
     
-    # 总荷载
-    工况1_total = 工况1_竖向永久 + 工况1_竖向可变 + 工况1_水平
+    # 总荷载(仅用于稳定计算，不用于应力)
+    工况1_total = 工况1_竖向_总计  # 应力计算只用竖向荷载
     
     # ========== 5. 工况2：施工检修组合 ==========
     # 竖向永久作用 (相同)
@@ -96,11 +99,14 @@ def calculate_loads(pipe: PipeModel, load: LoadModel) -> LoadResult:
         load.gamma_construction * construction_kN
     )
     
+    # 竖向总荷载
+    工况2_竖向_总计 = 工况2_竖向永久 + 工况2_竖向可变
+    
     # 水平荷载 (施工检修组合不考虑风荷载)
     工况2_水平 = 0
     
     # 总荷载
-    工况2_total = 工况2_竖向永久 + 工况2_竖向可变 + 工况2_水平
+    工况2_total = 工况2_竖向_总计
     
     return LoadResult(
         # 每米荷载
@@ -122,11 +128,13 @@ def calculate_loads(pipe: PipeModel, load: LoadModel) -> LoadResult:
         # 工况1
         工况1_竖向永久=round(工况1_竖向永久, 2),
         工况1_竖向可变=round(工况1_竖向可变, 2),
+        工况1_竖向_总计=round(工况1_竖向_总计, 2),
         工况1_水平荷载=round(工况1_水平, 2),
         工况1_total_kN=round(工况1_total, 2),
         # 工况2
         工况2_竖向永久=round(工况2_竖向永久, 2),
         工况2_竖向可变=round(工况2_竖向可变, 2),
+        工况2_竖向_总计=round(工况2_竖向_总计, 2),
         工况2_水平荷载=round(工况2_水平, 2),
         工况2_total_kN=round(工况2_total, 2),
     )
