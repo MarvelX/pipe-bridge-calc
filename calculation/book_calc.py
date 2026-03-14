@@ -307,7 +307,7 @@ $$\\sigma = \\sqrt{{\\sigma_x^2 + \\sigma_\\theta^2 - \\sigma_x \\cdot \\sigma_\
 
 | 验算项目 | 结果 | 备注 |
 |----------|------|------|
-| 跨中强度 | {'✅ 通过' if sr.is_safe else '❌ 不通过'} | 安全系数 {sr.safety_ factor:.2f} |
+| 跨中强度 | {'✅ 通过' if sr.is_safe else '❌ 不通过'} | 安全系数 {sr.safety_factor:.2f} |
 | 支座强度 | {'✅ 通过' if sr.is_safe_support else '❌ 不通过'} | 安全系数 {sr.safety_factor_support:.2f} |
 """
     

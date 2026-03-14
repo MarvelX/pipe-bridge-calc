@@ -30,13 +30,18 @@ def calculate_deflection(pipe: PipeModel, load_result: LoadResult) -> Deflection
     E = 206000                  # 弹性模量 MPa
     I = pipe.moment_of_inertia_mm4  # 惯性矩 mm⁴
     
-    # 荷载 (使用工况1总荷载，标准值换算)
-    # 将 kN 转换为 N/mm: 先把 kN 转 N，再除以跨长 mm
-    q = load_result.工况1_total_kN * 1000 / L  # N/mm (设计值)
-    
-    # 挠度计算采用标准值，需除以分项系数
-    # 简化: 取设计值的 0.8 倍作为标准值近似
-    q_std = q * 0.8
+    # 挠度计算应使用荷载标准值（不乘分项系数）
+    # 标准值 = 永久荷载 + 可变荷载（不乘γ）
+    # 永久荷载: 自重 + 防腐 + 附加 + 水重
+    # 可变荷载: 内水压 + 施工检修
+    q_std = (
+        load_result.self_weight_kN + 
+        load_result.anti_corrosion_kN + 
+        load_result.additional_kN + 
+        load_result.water_weight_kN +
+        load_result.internal_pressure_kN +
+        load_result.construction_kN
+    ) * 1000 / L  # N/mm
     
     # ========== 1. 挠度计算 (简支梁) ==========
     # f = 5qL⁴/(384EI) (均布荷载)
