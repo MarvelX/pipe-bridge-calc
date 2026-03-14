@@ -17,27 +17,33 @@ class StressResult:
         self.sigma_theta_M = 0       # 弯曲产生的环向应力
         self.sigma_theta_total = 0   # 总环向应力
         
-        # ========== 轴向应力 σx ==========
+        # ========== 轴向应力 σx (跨中) ==========
         self.sigma_x_M = 0           # 竖向弯曲应力 (7.2.2-1): σ = M/W
         self.sigma_x_Fw = 0          # 内水压轴向拉应力 (7.2.2-2,3): σ = N_H/A
         self.sigma_x_t = 0           # 温度应力 (7.2.2-4): σ = αEΔT
         self.sigma_x_t_reduced = 0  # 折减后温度应力
         self.sigma_x_friction = 0    # 摩擦应力 (7.2.2-5): σ = μR/A
-        self.sigma_x_total = 0      # 总轴向应力
+        self.sigma_x_total = 0      # 总轴向应力 (跨中)
+        
+        # ========== 支座处局部应力 (7.2.4条 - 环式支承) ==========
+        self.sigma_x_local_out = 0   # 支座处管壁外面局部纵向应力
+        self.sigma_x_local_in = 0    # 支座处管壁内面局部纵向应力
+        self.beta = 0                # 环式支承环相对刚度影响系数
         
         # ========== 剪切应力 τ ==========
         self.tau_avg = 0            # 平均剪应力 (7.2.3-1): τ = V/A
         self.tau_max = 0            # 最大剪应力 (7.2.3-2): τ = VQ/(It)
         
         # ========== 组合应力 ==========
-        self.combined_stress = 0    # 折算应力 (第四强度理论)
+        self.combined_stress = 0    # 折算应力 (第四强度理论) - 跨中
+        self.combined_stress_support = 0  # 折算应力 - 支座处
+        self.is_safe = False
+        self.is_safe_support = False  # 支座处强度验算
+        self.safety_factor = 0
+        self.safety_factor_support = 0
         
         # ========== 应力公式引用 ==========
         self.formula_refs = {}       # 公式引用字典
-        
-        # ========== 验算结果 ==========
-        self.is_safe = False
-        self.safety_factor = 0
 
 
 def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float) -> StressResult:
@@ -158,8 +164,40 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float) 
     result.formula_refs['combined'] = {
         'formula': 'σ = √(σx² + σθ² - σx·σθ + 3τ²)',
         'ref': 'CECS 214-2006 第7.1.2条 (第四强度理论)',
-        'desc': '组合折算应力'
+        'desc': '跨中组合折算应力'
     }
+    
+    # ========== 4.1 支座处局部应力计算 (7.2.4条 - 环式支承) ==========
+    # 当采用环式支承时，需要计算支座处由内水压力产生的管壁局部纵向应力
+    support_type = pipe.support_type.value if hasattr(pipe.support_type, 'value') else pipe.support_type
+    if support_type == "环式支承":
+        # β为环式支承环相对刚度影响系数，可近似取0.9
+        result.beta = 0.9
+        # σ'x,out = -1.82βσθ,Fw (外面，受压)
+        result.sigma_x_local_out = -1.82 * result.beta * result.sigma_theta_Fw
+        # σ'x,in = +1.82βσθ,Fw (内面，受拉)
+        result.sigma_x_local_in = 1.82 * result.beta * result.sigma_theta_Fw
+        
+        result.formula_refs['local_stress'] = {
+            'formula': "σ'x = ±1.82βσθ,Fw",
+            'ref': 'CECS 214-2006 公式(7.2.4-1,2)',
+            'desc': f'环式支承处管壁局部纵向应力 (β={result.beta})'
+        }
+        
+        # 支座处组合折算应力 (考虑局部应力)
+        # 支座处轴向应力 = 摩擦应力 + 温度应力 + 局部应力
+        sigma_x_support = result.sigma_x_friction + result.sigma_x_t_reduced + result.sigma_x_local_in
+        result.combined_stress_support = math.sqrt(
+            sigma_x_support**2 + sigma_theta**2 - sigma_x_support * sigma_theta + 3 * tau**2
+        )
+        result.formula_refs['combined_support'] = {
+            'formula': 'σ = √(σx² + σθ² - σx·σθ + 3τ²)',
+            'ref': 'CECS 214-2006 第7.1.2条 (支座处)',
+            'desc': '支座处组合折算应力'
+        }
+    else:
+        # 鞍式支承不做局部应力计算
+        result.combined_stress_support = result.combined_stress
     
     # ========== 5. 强度验算 ==========
     # f' = φf (焊缝折减后设计强度)
@@ -175,8 +213,17 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float) 
         'phi': f'{pipe.weld_reduction_coefficient}'
     }
     
+    # 跨中强度验算
     result.is_safe = result.combined_stress <= allowable_stress
     result.safety_factor = allowable_stress / result.combined_stress if result.combined_stress > 0 else 999
+    
+    # 支座处强度验算 (仅环式支承)
+    if support_type == "环式支承":
+        result.is_safe_support = result.combined_stress_support <= allowable_stress
+        result.safety_factor_support = allowable_stress / result.combined_stress_support if result.combined_stress_support > 0 else 999
+    else:
+        result.is_safe_support = result.is_safe
+        result.safety_factor_support = result.safety_factor
     
     return result
 
