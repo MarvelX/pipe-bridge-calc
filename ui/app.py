@@ -262,66 +262,106 @@ def main():
             
             load_result = calculate_loads(pipe, load)
             
-            # 每米荷载
-            st.markdown("#### 1.1 每米荷载 (kN/m)")
+            # 1.1 竖向荷载
+            st.markdown("#### 1.1 竖向荷载 (kN)")
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("管道自重", f"{load_result.self_weight_per_m:.4f}")
-                st.caption("-G=γs×A×g×K/1000\n CECS 214-2006 4.2.1\nK=自重放大系数")
-            with col2:
-                st.metric("防腐层重", f"{load_result.anti_corrosion_per_m:.4f}")
-                st.caption("📐 CECS 214-2006 4.2")
-            with col3:
-                st.metric("附加荷载", f"{load_result.additional_per_m:.4f}")
-                st.caption("📐 CECS 214-2006 4.2")
-            with col4:
-                st.metric("管内水重", f"{load_result.water_weight_per_m:.4f}")
-                st.caption("W=ρw×π×d²/4×g/1000\n📐 CECS 214-2006 4.2.1")
-            
-            # 跨总荷载
-            st.markdown("#### 1.2 跨总荷载 (kN)")
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("管道自重 G", f"{load_result.self_weight_kN:.2f}")
-                st.caption("G×L\n📐 按跨长换算")
+                st.metric("管道自重", f"{load_result.self_weight_kN:.2f}")
             with col2:
                 st.metric("防腐层重", f"{load_result.anti_corrosion_kN:.2f}")
-                st.caption("-防腐重×L")
             with col3:
                 st.metric("附加荷载", f"{load_result.additional_kN:.2f}")
-                st.caption("-附加×L")
             with col4:
-                st.metric("管内水重 W", f"{load_result.water_weight_kN:.2f}")
-                st.caption("-W×L")
+                st.metric("管内水重", f"{load_result.water_weight_kN:.2f}")
             
-            # 荷载组合
-            st.markdown("#### 1.3 荷载组合")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("内水压力", f"{load_result.internal_pressure_kN:.2f}")
+            with col2:
+                st.metric("施工检修", f"{load_result.construction_kN:.2f}")
+            with col3:
+                st.metric("真空压力", f"{load_result.vacuum_kN:.2f}")
+            
+            # 1.2 水平风荷载
+            st.markdown("#### 1.2 水平风荷载 (kN)")
             col1, col2 = st.columns(2)
             with col1:
-                st.metric("工况1 (基本组合)", f"{load_result.工况1_竖向_总计:.2f} kN")
-                st.caption("1.2×永久 + 1.4×可变 + 1.4×风×ψ\n📐 CECS 214-2006 5.2.1")
+                st.metric("风荷载标准值", f"{load_result.wind_horizontal_kN:.2f}")
             with col2:
-                st.metric("工况2 (施工检修)", f"{load_result.工况2_total_kN:.2f} kN")
-                st.caption("1.2×永久 + 1.4×(内水+施工)\n📐 CECS 214-2006 5.2.2")
+                st.metric("风荷载效应", f"{load_result.工况1_水平荷载:.2f}")
+            
+            # 1.3 荷载组合1
+            st.markdown("#### 1.3 荷载组合1 (基本组合)")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("竖向永久", f"{load_result.工况1_竖向永久:.2f} kN")
+            with col2:
+                st.metric("竖向可变", f"{load_result.工况1_竖向可变:.2f} kN")
+            with col3:
+                st.metric("水平风荷载", f"{load_result.工况1_水平荷载:.2f} kN")
+            
+            # 1.4 荷载组合2
+            st.markdown("#### 1.4 荷载组合2 (施工检修)")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("竖向永久", f"{load_result.工况2_竖向永久:.2f} kN")
+            with col2:
+                st.metric("竖向可变", f"{load_result.工况2_竖向可变:.2f} kN")
+            with col3:
+                st.metric("水平风荷载", f"{load_result.工况2_水平荷载:.2f} kN")
             
             # ========== 2. 内力计算 ==========
             st.subheader("二、内力计算")
             st.markdown("**依据: CECS 214-2006 第6章**")
             
-            reaction = calculate_support_reaction(pipe, load_result.工况1_竖向_总计)
-            shear = calculate_shear_force(pipe, load_result.工况1_竖向_总计)
-            moment = calculate_bending_moment(pipe, load_result.工况1_竖向_总计)
+            # 2.1 竖向荷载内力
+            st.markdown("#### 2.1 竖向荷载产生的内力")
+            reaction_y = calculate_support_reaction(pipe, load_result.工况1_竖向_总计)
+            shear_y = calculate_shear_force(pipe, load_result.工况1_竖向_总计)
+            moment_y = calculate_bending_moment(pipe, load_result.工况1_竖向_总计)
             
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("支座反力 R", f"{reaction/1000:.2f} kN")
-                st.caption("R = qL/2\n📐 CECS 214-2006 6.1")
+                st.metric("支座反力 R_y", f"{reaction_y/1000:.2f} kN")
             with col2:
-                st.metric("支座剪力 V", f"{shear/1000:.2f} kN")
-                st.caption("V = R\n📐 CECS 214-2006 6.1")
+                st.metric("支座剪力 V_y", f"{shear_y/1000:.2f} kN")
             with col3:
-                st.metric("跨中弯矩 M", f"{moment/1e6:.2f} kN·m")
-                st.caption("M = qL²/8\n📐 CECS 214-2006 6.1")
+                st.metric("跨中弯矩 M_y", f"{moment_y/1e6:.2f} kN·m")
+            
+            # 2.2 水平风荷载内力
+            st.markdown("#### 2.2 水平风荷载产生的内力")
+            if load_result.工况1_水平荷载 > 0:
+                reaction_z = calculate_support_reaction(pipe, load_result.工况1_水平荷载)
+                shear_z = calculate_shear_force(pipe, load_result.工况1_水平荷载)
+                moment_z = calculate_bending_moment(pipe, load_result.工况1_水平荷载)
+            else:
+                reaction_z = 0
+                shear_z = 0
+                moment_z = 0
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("支座反力 R_z", f"{reaction_z/1000:.2f} kN")
+            with col2:
+                st.metric("支座剪力 V_z", f"{shear_z/1000:.2f} kN")
+            with col3:
+                st.metric("跨中弯矩 M_z", f"{moment_z/1e6:.2f} kN·m")
+            
+            # 2.3 内力合成
+            st.markdown("#### 2.3 内力合成")
+            import math
+            moment_total = math.sqrt(moment_y**2 + moment_z**2)
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("竖向弯矩 M_y", f"{moment_y/1e6:.2f} kN·m")
+            with col2:
+                st.metric("水平弯矩 M_z", f"{moment_z/1e6:.2f} kN·m")
+            with col3:
+                st.metric("合成弯矩 M", f"{moment_total/1e6:.2f} kN·m")
+            
+            reaction = reaction_y
+            shear = shear_y
+            moment = moment_y
     
     # ========== Tab 2: 强度计算 ==========
     with tab2:
