@@ -282,3 +282,88 @@ def calculate_bending_moment(pipe: PipeModel, total_load_kN: float) -> float:
     q_N_per_mm = total_load_kN * 1000 / L_mm  # N/mm
     M = q_N_per_mm * L_mm**2 / 8  # N·mm
     return M
+
+
+def check_midspan_stress(stress_result: StressResult, pipe: PipeModel, load: LoadModel) -> dict:
+    """
+    跨中截面验算
+    - 仅检查最大弯曲应力 + 轴向拉/压应力组合
+    - 此时剪应力 τ = 0
+    - 需要考虑正负号（管顶与管底分别验算）
+    """
+    result = {
+        "location": "跨中截面",
+        "sigma_top": 0,  # 管顶应力
+        "sigma_bottom": 0,  # 管底应力
+        "sigma_combined_top": 0,
+        "sigma_combined_bottom": 0,
+        "is_safe": True,
+        "details": []
+    }
+    
+    # 管顶应力 = -弯曲应力 + 轴向应力 (压为负)
+    # 管底应力 = +弯曲应力 + 轴向应力
+    sigma_M = stress_result.sigma_x_M_combined  # 弯曲应力
+    sigma_Fw = stress_result.sigma_x_Fw  # 内水压轴向
+    sigma_t = stress_result.sigma_x_t_reduced  # 温度应力
+    sigma_total_no_M = sigma_Fw + sigma_t  # 轴向应力
+    
+    # 管顶: 弯曲压应力 + 轴向拉应力
+    result["sigma_top"] = -sigma_M + sigma_total_no_M
+    # 管底: 弯曲拉应力 + 轴向拉应力  
+    result["sigma_bottom"] = sigma_M + sigma_total_no_M
+    
+    # 第四强度理论 (τ=0时简化为)
+    result["sigma_combined_top"] = abs(result["sigma_top"])
+    result["sigma_combined_bottom"] = abs(result["sigma_bottom"])
+    
+    # 允许应力
+    f = pipe.design_strength_MPa
+    phi = pipe.weld_reduction_coefficient
+    gamma_0 = load.importance_factor
+    allowable = 0.9 * phi * f / gamma_0
+    
+    result["is_safe"] = (result["sigma_combined_top"] <= allowable and 
+                        result["sigma_combined_bottom"] <= allowable)
+    result["allowable"] = allowable
+    
+    return result
+
+
+def check_support_stress(stress_result: StressResult, pipe: PipeModel, load: LoadModel) -> dict:
+    """
+    支座截面验算
+    - 仅检查最大剪应力 τ
+    - 圆管系数取 2.0 (不是1.5)
+    - 考虑局部支座应力
+    """
+    result = {
+        "location": "支座截面",
+        "tau_max": 0,
+        "tau_with_local": 0,
+        "is_safe": True,
+        "details": []
+    }
+    
+    # 支座处剪应力系数取2.0
+    result["tau_max"] = 2.0 * stress_result.tau_avg
+    
+    # 考虑局部应力后
+    if hasattr(stress_result, 'sigma_x_local_in') and stress_result.sigma_x_local_in != 0:
+        # 组合剪应力
+        sigma_local = stress_result.sigma_x_local_in
+        tau = result["tau_max"]
+        result["tau_with_local"] = math.sqrt(sigma_local**2 + 3*tau**2)
+    else:
+        result["tau_with_local"] = result["tau_max"]
+    
+    # 允许剪应力 (0.9*0.58f)
+    f = pipe.design_strength_MPa
+    phi = pipe.weld_reduction_coefficient
+    gamma_0 = load.importance_factor
+    allowable_tau = 0.9 * 0.58 * phi * f / gamma_0
+    
+    result["is_safe"] = result["tau_with_local"] <= allowable_tau
+    result["allowable"] = allowable_tau
+    
+    return result
