@@ -88,7 +88,9 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, reaction_force_N: float,
     # 2.1 竖向弯曲应力 (7.2.2-1): σ = My/W
     # 正确公式: My = qyL²/8 (简支梁跨中最大弯矩)
     # 其中 qy = 竖向荷载/跨长, L = 跨长
-    q_vertical_N_per_mm = reaction_force_N / (pipe.span_m * 1000)  # N/mm
+    # 注意：必须用荷载计算，不能用反力！
+    total_load_N = reaction_force_N * 2  # 总荷载 N (反力×2)
+    q_vertical_N_per_mm = total_load_N / (pipe.span_m * 1000)  # N/mm
     L_mm = pipe.span_m * 1000  # mm
     My = q_vertical_N_per_mm * L_mm**2 / 8  # N·mm (竖向弯矩)
     result.sigma_x_M = My / W
