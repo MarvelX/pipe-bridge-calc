@@ -1,5 +1,5 @@
 """
-管桥计算器 - Streamlit UI
+管桥计算器 Streamlit UI
 符合CECS 214-2006规范
 """
 import streamlit as st
@@ -29,21 +29,21 @@ def main():
     st.title("🌉 管桥结构计算器")
     st.markdown("**符合 CECS 214-2006《自承式给水钢管跨越结构设计规程》**")
     
-    # ========== Sidebar - 输入参数 ==========
+    # ========== Sidebar 输入参数 ==========
     st.sidebar.header("📝 输入参数")
     
     # 管道参数
     st.sidebar.subheader("📐 管道参数")
     
-    # 管道规格选择
+    # 管道规格 (默认DN1000)选择
     pipe_type = st.sidebar.selectbox(
-        "管道规格",
+        "管道规格 (默认DN1000)",
         options=list(STANDARD_PIPES.keys()),
         index=6,
-        help="选择标准管道规格"
+        help="选择标准管道规格 (默认DN1000)"
     )
     
-    # 管道壁厚 - 可调！
+    # 管道壁厚 可调！
     spec = STANDARD_PIPES[pipe_type]
     default_t = spec["wall_thickness_mm"]
     wall_thickness = st.sidebar.number_input(
@@ -64,15 +64,16 @@ def main():
     support_type = st.sidebar.selectbox(
         "支承方式",
         options=["鞍式支承", "环式支承"],
-        index=0
+        index=1,
+        help="CECS 214-2006: 鞍式支承或环式支承"
     )
     
-    # 支承半角 - 新增！
+    # 支承半角
     support_half_angle = st.sidebar.slider(
         "支承半角 θ (°)",
         min_value=60.0,
         max_value=180.0,
-        value=120.0,
+        value=60.0,
         step=5.0,
         help="CECS 214-2006 公式(7.2.2-2,3): 影响内水压轴向应力"
     )
@@ -87,11 +88,11 @@ def main():
         help="CECS 214-2006 公式(7.2.2-5)"
     )
     
-    # 焊缝折减系数 - 新增！
+    # 焊缝折减系数 新增！
     st.sidebar.subheader("焊缝参数")
     weld_reduction = st.sidebar.slider(
         "焊缝折减系数 φ",
-        min_value=0.7,
+        min_value=0.70,
         max_value=1.0,
         value=0.9,
         step=0.05,
@@ -110,7 +111,7 @@ def main():
     # ========== 荷载参数 ==========
     st.sidebar.subheader("📊 荷载参数")
     
-    # 自重放大系数 - 新增！
+    # 自重放大系数 新增！
     self_weight_amp = st.sidebar.number_input(
         "管道自重放大系数 K",
         min_value=1.0,
@@ -120,7 +121,7 @@ def main():
         help="CECS 214-2006 第4.2.1条: 考虑附件、保温层等"
     )
     
-    # 防腐层重 - 新增！
+    # 防腐层重 新增！
     anti_corrosion = st.sidebar.number_input(
         "防腐层重 (kN/m)",
         min_value=0.0,
@@ -130,7 +131,7 @@ def main():
         help="防腐层重量 (kN/m)"
     )
     
-    # 附加荷载 - 新增！
+    # 附加荷载 新增！
     additional_load = st.sidebar.number_input(
         "附加荷载 (kN/m)",
         min_value=0.0,
@@ -143,9 +144,9 @@ def main():
     # 内水压力
     internal_pressure = st.sidebar.number_input(
         "设计内水压力 p (MPa)", 
-        min_value=0.5, 
+        min_value=0.9, 
         max_value=2.0, 
-        value=0.8, 
+        value=1.0, 
         step=0.1,
         help="CECS 214-2006 4.3.2: 不应小于0.9MPa"
     )
@@ -155,7 +156,7 @@ def main():
         "风荷载 (kN)", 
         min_value=0.0, 
         max_value=100.0, 
-        value=0.0, 
+        value=0.70, 
         step=0.1,
         help="CECS 214-2006 4.3.1"
     )
@@ -170,24 +171,22 @@ def main():
         help="CECS 214-2006 4.3.4"
     )
     
-    # 温度应力折减系数 - 新增！
+    # 温度应力折减系数
     temp_stress_reduction = st.sidebar.slider(
         "温度应力折减系数 ζ",
         min_value=0.5,
         max_value=1.0,
-        value=0.7,
-        step=0.1,
+        value=0.70,
+        step=0.05,
         help="CECS 214-2006 公式(7.2.2-4)"
     )
     
     # 施工检修荷载
-    construction_load = st.sidebar.number_input(
-        "施工检修荷载 (kN)", 
-        min_value=0.0, 
-        max_value=100.0, 
-        value=0.0, 
-        step=5.0,
-        help="CECS 214-2006 表4.3.6"
+    construction_load = st.sidebar.selectbox(
+        "施工检修荷载系数", 
+        options=[0.7, 1.0, 2.0],
+        index=1,
+        help="CECS 214-2006 表4.3.6: 管径≤400取0.5, 400~700取0.75, >700取1.0 (乘以管径系数)"
     )
     
     # 重要性系数
@@ -201,8 +200,9 @@ def main():
     )
     
     # ========== Main content ==========
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "📐 荷载与应力", 
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📐 荷载与内力", 
+        "💪 强度计算",
         "📏 挠度验算", 
         "⚙️ 稳定计算",
         "📋 计算书"
@@ -248,54 +248,95 @@ def main():
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("管道自重", f"{load_result.self_weight_per_m:.4f}")
-                st.caption(f"K={self_weight_amp}")
+                st.caption("-G=γs×A×g×K/1000\n CECS 214-2006 4.2.1\nK=自重放大系数")
             with col2:
                 st.metric("防腐层重", f"{load_result.anti_corrosion_per_m:.4f}")
+                st.caption("📐 CECS 214-2006 4.2")
             with col3:
                 st.metric("附加荷载", f"{load_result.additional_per_m:.4f}")
+                st.caption("📐 CECS 214-2006 4.2")
             with col4:
                 st.metric("管内水重", f"{load_result.water_weight_per_m:.4f}")
+                st.caption("W=ρw×π×d²/4×g/1000\n📐 CECS 214-2006 4.2.1")
             
             # 跨总荷载
             st.markdown("#### 1.2 跨总荷载 (kN)")
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("管道自重 G", f"{load_result.self_weight_kN:.2f}")
+                st.caption("G×L\n📐 按跨长换算")
             with col2:
                 st.metric("防腐层重", f"{load_result.anti_corrosion_kN:.2f}")
+                st.caption("-防腐重×L")
             with col3:
                 st.metric("附加荷载", f"{load_result.additional_kN:.2f}")
+                st.caption("-附加×L")
             with col4:
                 st.metric("管内水重 W", f"{load_result.water_weight_kN:.2f}")
+                st.caption("-W×L")
             
-            # 组合荷载
+            # 荷载组合
             st.markdown("#### 1.3 荷载组合")
             col1, col2 = st.columns(2)
             with col1:
-                st.metric("组合1 (1.2G+1.4Q)", f"{load_result.combination1_total_kN:.2f} kN")
+                st.metric("工况1 (基本组合)", f"{load_result.工况1_total_kN:.2f} kN")
+                st.caption("1.2×永久 + 1.4×可变 + 1.4×风×ψ\n📐 CECS 214-2006 5.2.1")
             with col2:
-                st.metric("组合2 (含施工)", f"{load_result.combination2_total_kN:.2f} kN")
+                st.metric("工况2 (施工检修)", f"{load_result.工况2_total_kN:.2f} kN")
+                st.caption("1.2×永久 + 1.4×(内水+施工)\n📐 CECS 214-2006 5.2.2")
             
             # ========== 2. 内力计算 ==========
             st.subheader("二、内力计算")
             st.markdown("**依据: CECS 214-2006 第6章**")
             
-            reaction = calculate_support_reaction(pipe, load_result.combination1_total_kN)
-            shear = calculate_shear_force(pipe, load_result.combination1_total_kN)
-            moment = calculate_bending_moment(pipe, load_result.combination1_total_kN)
+            reaction = calculate_support_reaction(pipe, load_result.工况1_total_kN)
+            shear = calculate_shear_force(pipe, load_result.工况1_total_kN)
+            moment = calculate_bending_moment(pipe, load_result.工况1_total_kN)
             
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("支座反力 R", f"{reaction/1000:.2f} kN")
+                st.caption("R = qL/2\n📐 CECS 214-2006 6.1")
             with col2:
                 st.metric("支座剪力 V", f"{shear/1000:.2f} kN")
+                st.caption("V = R\n📐 CECS 214-2006 6.1")
             with col3:
                 st.metric("跨中弯矩 M", f"{moment/1e6:.2f} kN·m")
+                st.caption("M = qL²/8\n📐 CECS 214-2006 6.1")
+    
+    # ========== Tab 2: 强度计算 ==========
+    with tab2:
+        st.header("强度计算")
+        st.markdown("**依据: CECS 214-2006 第7章**")
+        
+        if st.button("计算强度", type="primary", key="strength_btn"):
+            pipe = create_pipe(
+                pipe_type, span_m, 
+                support_type=support_type, 
+                friction_coefficient=friction_coef,
+                support_half_angle=support_half_angle,
+                weld_reduction_coefficient=weld_reduction
+            )
+            pipe.steel_grade = steel_grade
+            pipe.wall_thickness_mm = wall_thickness
             
-            # ========== 3. 应力计算 ==========
-            st.subheader("三、应力计算")
-            st.markdown("**依据: CECS 214-2006 第7.2节**")
+            load = LoadModel(
+                self_weight_amplification=self_weight_amp,
+                anti_corrosion_weight=anti_corrosion,
+                additional_load=additional_load,
+                internal_pressure_MPa=internal_pressure,
+                wind_load_kN=wind_load,
+                temperature_load_C=temperature_diff,
+                temperature_stress_reduction=temp_stress_reduction,
+                construction_load_kN=construction_load,
+                importance_factor=importance_factor
+            )
             
+            # 计算荷载和内力
+            load_result = calculate_loads(pipe, load)
+            reaction = calculate_support_reaction(pipe, load_result.工况1_total_kN)
+            
+            # 计算应力
             stress_result = calculate_stress(pipe, load, reaction)
             
             # 环向应力
@@ -303,9 +344,10 @@ def main():
             col1, col2 = st.columns(2)
             with col1:
                 st.metric("内水压环向应力", f"{stress_result.sigma_theta_Fw:.2f} MPa")
+                st.caption("σθ = p·r/t\n📐 CECS 214-2006 第7.2.1条")
             with col2:
                 formula = stress_result.formula_refs.get('sigma_theta', {})
-                st.caption(f"公式: {formula.get('formula', '')}\n引用: {formula.get('ref', '')}")
+                st.caption(f"参数: p={internal_pressure}MPa, r={pipe.inner_radius_mm:.0f}mm, t={wall_thickness}mm")
             
             # 轴向应力
             st.markdown("#### 3.2 轴向应力 σx")
@@ -319,32 +361,44 @@ def main():
                     f"{stress_result.sigma_x_friction:.2f}",
                     f"{stress_result.sigma_x_total:.2f}"
                 ],
-                "公式": ["(7.2.2-1)", "(7.2.2-2,3)", "(7.2.2-4)", "×ζ", "(7.2.2-5)", "叠加"]
+                "公式": [
+                    "σ=M/W (7.2.2-1)",
+                    "σ=p·r·(1-cosθ)/(2tπ) (7.2.2-2,3)",
+                    "σ=αEΔT (7.2.2-4)",
+                    "×ζ折减",
+                    "σ=μR/A (7.2.2-5)",
+                    "叠加"
+                ]
             }
             st.table(stress_data)
+            st.caption("注: θ=支承半角, ζ=温度应力折减系数, μ=摩擦系数")
             
             # 剪应力
             st.markdown("#### 3.3 剪切应力 τ")
             col1, col2 = st.columns(2)
             with col1:
                 st.metric("平均剪应力", f"{stress_result.tau_avg:.2f} MPa")
+                st.caption("τ = V/A\n📐 CECS 214-2006 公式(7.2.3-1)")
             with col2:
                 st.metric("最大剪应力", f"{stress_result.tau_max:.2f} MPa")
+                st.caption("τmax ≈ 1.5τavg\n📐 CECS 214-2006 公式(7.2.3-2)")
             
             # 组合应力
             st.markdown("#### 3.4 组合折算应力")
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("组合折算应力", f"{stress_result.combined_stress:.2f} MPa")
+                st.caption("σ=√(σx²+σθ²-σx·σθ+3τ²)\n📐 CECS 214-2006 第7.1.2条")
             with col2:
                 formula = stress_result.formula_refs.get('combined', {})
-                st.caption(f"公式: {formula.get('formula', '')}")
+                st.caption(f" {formula.get('ref', '')}")
             with col3:
                 allowable = stress_result.formula_refs.get('check', {}).get('allowable', 'N/A')
                 st.metric("允许应力", allowable)
+                st.caption("σ ≤ 0.9φf/γ₀\n📐 CECS 214-2006 公式(7.1.1)")
             
-            # ========== 4. 强度验算 ==========
-            st.subheader("四、强度验算")
+            # 强度验算结果
+            st.markdown("#### 3.5 强度验算结论")
             
             check_info = stress_result.formula_refs.get('check', {})
             st.caption(f"焊缝折减系数 φ = {check_info.get('phi', '')}, 折减后设计强度 f' = {check_info.get('f_reduced', '')}")
@@ -354,8 +408,8 @@ def main():
             else:
                 st.error(f"❌ **强度验算不通过!** 安全系数: {stress_result.safety_factor:.2f}")
     
-    # ========== Tab 2: 挠度验算 ==========
-    with tab2:
+    # ========== Tab 3: 挠度验算 ==========
+    with tab3:
         st.header("挠度验算")
         st.markdown("**依据: CECS 214-2006 第9章**")
         
@@ -384,8 +438,8 @@ def main():
             else:
                 st.error("❌ 挠度验算不通过!")
     
-    # ========== Tab 3: 稳定计算 ==========
-    with tab3:
+    # ========== Tab 4: 稳定计算 ==========
+    with tab4:
         st.header("稳定计算")
         st.markdown("**依据: CECS 214-2006 第8章**")
         
@@ -410,10 +464,21 @@ def main():
             else:
                 st.warning("⚠️ 稳定不足，建议设置加劲环")
     
-    # ========== Tab 4: 计算书 ==========
-    with tab4:
-        st.header("计算书生成")
-        st.info("📝 计算书功能开发中...")
+    # ========== Tab 5: 计算书 ==========
+    with tab5:
+        st.header("计算书")
+        st.info("📝 计算书生成功能开发中...")
+        st.markdown("""
+        ### 计算书将包含:
+        - 工程概况
+        - 设计依据
+        - 荷载计算
+        - 内力计算
+        - 应力计算
+        - 强度验算
+        - 挠度验算
+        - 稳定验算
+        """)
 
 
 if __name__ == "__main__":

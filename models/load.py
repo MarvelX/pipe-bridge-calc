@@ -45,8 +45,19 @@ class LoadModel(BaseModel):
         description="温度应力折减系数 ζ (规范7.2.2-4)"
     )
     
-    # 施工检修荷载 (规范4.3.6)
-    construction_load_kN: float = Field(default=0, description="施工检修荷载(kN)")
+    # 施工检修荷载 (规范4.3.6) - 根据管径自动计算
+    # 默认值为0，用户可修改，或根据管径自动计算
+    construction_load_auto: bool = Field(
+        default=True, 
+        description="是否根据管径自动计算施工检修荷载"
+    )
+    construction_load_kN: float = Field(
+        default=0, 
+        description="施工检修荷载(kN), 管径≤400mm取0.5, 400~700mm取0.75, >700mm取1.0"
+    )
+    
+    # 真空压力 (规范4.3.3)
+    vacuum_pressure_MPa: float = Field(default=0.05, description="真空压力(MPa)")
     
     # 真空压力 (规范4.3.3)
     vacuum_pressure_MPa: float = Field(default=0.05, description="真空压力(MPa)")
@@ -103,15 +114,24 @@ class LoadResult(BaseModel):
     # 可变荷载标准值
     internal_pressure_kN: float = Field(description="内水压力标准值(kN)")
     wind_kN: float = Field(default=0, description="风荷载标准值(kN)")
+    wind_horizontal_kN: float = Field(default=0, description="水平风荷载(kN)")
     temperature_kN: float = Field(default=0, description="温度作用(kN)")
     construction_kN: float = Field(default=0, description="施工检修荷载标准值(kN)")
     vacuum_kN: float = Field(default=0, description="真空压力(kN)")
     
-    # 组合1: 主要组合 (1.2G + 1.4Q)
-    combination1_total_kN: float = Field(description="组合1总荷载(kN)")
+    # 工况1: 基本组合
+    工况1_竖向永久: float = Field(default=0, description="工况1竖向永久作用(kN)")
+    工况1_竖向可变: float = Field(default=0, description="工况1竖向可变作用(kN)")
+    工况1_水平荷载: float = Field(default=0, description="工况1水平荷载(kN)")
+    工况1_total_kN: float = Field(default=0, description="工况1总荷载(kN)")
     
-    # 组合2: 施工检修组合 (无风)
-    combination2_total_kN: float = Field(description="组合2总荷载(kN)")
+    # 工况2: 施工检修组合
+    工况2_竖向永久: float = Field(default=0, description="工况2竖向永久作用(kN)")
+    工况2_竖向可变: float = Field(default=0, description="工况2竖向可变作用(kN)")
+    工况2_水平荷载: float = Field(default=0, description="工况2水平荷载(kN)")
+    工况2_total_kN: float = Field(default=0, description="工况2总荷载(kN)")
     
-    # 组合3: 偶然组合 (地震等，可扩展)
+    # 兼容旧版本
+    combination1_total_kN: float = Field(default=0, description="组合1总荷载(kN)")
+    combination2_total_kN: float = Field(default=0, description="组合2总荷载(kN)")
     combination3_total_kN: float = Field(default=0, description="组合3总荷载(kN)")
