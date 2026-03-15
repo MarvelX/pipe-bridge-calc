@@ -5,11 +5,50 @@ from calculation.load_calc import LoadResult
 from calculation.stress_calc import StressResult
 from calculation.deflection_calc import DeflectionResult
 from calculation.stability_calc import StabilityResult
+from dataclasses import dataclass
+from datetime import datetime
 
 
-def format_calculation_book(pipe: PipeModel, load: LoadModel, 
-                            lr: LoadResult, sr: StressResult, 
-                            dr: DeflectionResult = None, stability_result: StabilityResult = None) -> str:
+@dataclass
+class CalculationBook:
+    """计算书数据类"""
+    project_name: str
+    generated_date: str
+    pipe: PipeModel
+    load: LoadModel
+    load_result: LoadResult
+    stress_result: StressResult
+    deflection_result: DeflectionResult = None
+    stability_result: StabilityResult = None
+
+
+def generate_calculation_book(pipe: PipeModel, load: LoadModel, 
+                            load_result: LoadResult, stress_result: StressResult,
+                            deflection_result: DeflectionResult = None,
+                            stability_result: StabilityResult = None,
+                            project_name: str = "自承式管线桥结构设计") -> CalculationBook:
+    """生成计算书数据对象"""
+    return CalculationBook(
+        project_name=project_name,
+        generated_date=datetime.now().strftime("%Y-%m-%d"),
+        pipe=pipe,
+        load=load,
+        load_result=load_result,
+        stress_result=stress_result,
+        deflection_result=deflection_result,
+        stability_result=stability_result
+    )
+
+
+def format_calculation_book(book: CalculationBook) -> str:
+    """生成带公式推导过程的计算书"""
+    
+    pipe = book.pipe
+    load = book.load
+    lr = book.load_result
+    sr = book.stress_result
+    dr = book.deflection_result
+    stability_result = book.stability_result
     
     # 提前计算一些用于显示的局部中间变量
     My = lr.工况1_竖向_总计 * pipe.span_m**2 / 8

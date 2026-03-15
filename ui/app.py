@@ -17,6 +17,7 @@ from calculation.deflection_calc import calculate_deflection, get_allowable_defl
 from calculation.stability_calc import calculate_ring_stability, get_stiffener_spacing
 from calculation.pile_calc import PileModel, SoilLayer, calculate_pile_capacity
 from calculation.book_calc import generate_calculation_book, format_calculation_book
+from calculation.export_doc import create_word_report
 
 
 st.set_page_config(
@@ -58,7 +59,7 @@ def main():
     
     # 跨径 (仅支持单跨简支梁)
     st.sidebar.markdown("**⚠️ 当前仅支持单跨简支梁**")
-    span_m = st.sidebar.number_input("跨径 L (m)", min_value=1.0, max_value=50.0, value=30.0, step=0.5, disabled=False)
+    span_m = st.sidebar.number_input("跨径 L (m)", min_value=1.0, max_value=50.0, value=20.0, step=1.0, disabled=False)
     
     # 支承参数
     st.sidebar.subheader("支承参数")
@@ -594,13 +595,31 @@ def main():
             # 显示计算书
             st.markdown(book_text)
             
-            # 下载按钮
-            st.download_button(
-                label="📥 下载计算书 (Markdown)",
-                data=book_text,
-                file_name=f"计算书_{pipe.name}_{pipe.span_m}m.md",
-                mime="text/markdown"
-            )
+            st.markdown("---")
+            st.markdown("### 导出与存档")
+            
+            col_dl1, col_dl2 = st.columns(2)
+            
+            # Markdown下载按钮
+            with col_dl1:
+                st.download_button(
+                    label="📥 下载 Markdown 计算书",
+                    data=book_text,
+                    file_name=f"计算书_{pipe.name}_{pipe.span_m}m.md",
+                    mime="text/markdown"
+                )
+            
+            # Word下载按钮
+            with col_dl2:
+                word_file = create_word_report(book_text)
+                st.download_button(
+                    label="📄 下载 Word 计算书 (.docx)",
+                    data=word_file,
+                    file_name=f"管桥结构计算书_DN{int(pipe.diameter_mm)}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+            
+            st.info("💡 **PDF导出说明**: 请下载 Word 文件，检查格式后使用 Word【另存为 PDF】归档")
 
 
 if __name__ == "__main__":
