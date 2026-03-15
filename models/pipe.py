@@ -2,7 +2,7 @@
 管桥计算程序
 管道参数模型 - 扩展DN300-DN1800
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional
 from enum import Enum
 import math
@@ -61,6 +61,25 @@ class PipeModel(BaseModel):
     
     # 钢材参数
     steel_grade: str = Field(default="Q235", description="钢材牌号")
+    
+    @model_validator(mode='after')
+    def check_physical_boundaries(self):
+        """物理边界校验 - 防止反人类输入"""
+        if self.diameter_mm > 0 and self.wall_thickness_mm > 0:
+            # 1. 宽厚比物理屏障
+            t_D_ratio = self.wall_thickness_mm / self.diameter_mm
+            if t_D_ratio < 0.002:
+                raise ValueError(f"⚠️ 管壁极度危险！t/D = {t_D_ratio:.4f} < 0.002，自承式钢管壁厚不应小于外径的1/500")
+            if self.wall_thickness_mm * 2 >= self.diameter_mm:
+                raise ValueError("⚠️ 壁厚不可能大于等于半径，请检查输入！")
+                
+        if self.span_m > 0 and self.diameter_mm > 0:
+            # 2. 跨高比物理屏障
+            L_D_ratio = (self.span_m * 1000) / self.diameter_mm
+            if L_D_ratio > 45:
+                raise ValueError(f"⚠️ 跨度过大！L/D = {L_D_ratio:.1f} > 45，单跨简支管桥请改用桁架式或拱式跨越")
+        
+        return self
     
     @property
     def inner_radius_mm(self) -> float:
