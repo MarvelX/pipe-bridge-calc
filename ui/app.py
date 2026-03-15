@@ -16,7 +16,7 @@ from calculation.load_calc import calculate_loads
 from calculation.stress_calc import calculate_stress
 from calculation.deflection_calc import calculate_deflection
 from calculation.stability_calc import calculate_ring_stability
-from calculation.book_calc import generate_calculation_book, format_calculation_book
+from calculation.book_calc import generate_calculation_book, format_calculation_book, format_calculation_book_latex, generate_pdf
 from calculation.export_doc import create_word_report
 from ui.plot_utils import draw_schematic
 
@@ -177,13 +177,42 @@ def main():
             st.markdown(book_text)
 
             st.markdown("---")
-            word_file = create_word_report(book_text)
-            st.download_button(
-                label="📄 下载 Word 计算书 (.docx)",
-                data=word_file,
-                file_name=f"管桥计算书_DN{int(pipe.diameter_mm)}.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            )
+            st.markdown("### 导出计算书")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            # Word下载
+            with col1:
+                word_file = create_word_report(book_text)
+                st.download_button(
+                    label="📄 下载 Word (.docx)",
+                    data=word_file,
+                    file_name=f"管桥计算书_DN{int(pipe.diameter_mm)}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+            
+            # LaTeX下载
+            with col2:
+                latex_text = format_calculation_book_latex(book)
+                st.download_button(
+                    label="📐 下载 LaTeX (.tex)",
+                    data=latex_text,
+                    file_name=f"管桥计算书_DN{int(pipe.diameter_mm)}.tex",
+                    mime="application/x-tex"
+                )
+            
+            # PDF下载
+            with col3:
+                try:
+                    pdf_bytes = generate_pdf(book)
+                    st.download_button(
+                        label="📕 下载 PDF",
+                        data=pdf_bytes,
+                        file_name=f"管桥计算书_DN{int(pipe.diameter_mm)}.pdf",
+                        mime="application/pdf"
+                    )
+                except Exception as e:
+                    st.warning(f"PDF生成需要安装LaTeX: {e}")
 
 if __name__ == "__main__":
     main()
