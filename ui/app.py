@@ -152,9 +152,9 @@ def main():
         with tab3:
             st.header("3. 挠度验算明细")
             st.latex(r"f_{max} = \frac{5 q L^4}{384 E I}")
-            st.info(f"实际计算总挠度: **$f$ = {dr.actual_deflection_mm:.2f} mm**")
+            st.info(f"实际计算总挠度: **$f$ = {dr.deflection_mm:.2f} mm**")
             st.caption(f"允许挠度 [f] = L/500 = {dr.allowable_deflection_mm:.1f} mm")
-            if dr.is_safe:
+            if dr.is_adequate:
                 st.success("✅ 结构刚度满足规范要求！")
             else:
                 st.error("❌ 挠度过大！")
