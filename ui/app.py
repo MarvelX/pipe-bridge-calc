@@ -163,7 +163,7 @@ def main():
         with tab4:
             st.header("4. 环向屈曲失稳验算")
             st.latex(r"P_{cr} = 2.6 E \left(\frac{t}{D}\right)^{2.5 \text{或} 2}")
-            st.info(f"管壁临界失稳压力: **$P_{cr}$ = {stab_r.critical_pressure:.4f} MPa**")
+            st.info(f"管壁临界失稳压力: **$P_{{cr}}$ = {stab_r.critical_pressure:.4f} MPa**")
             if stab_r.is_stable:
                 st.success("✅ 管桥抗局部屈曲验算通过！")
             else:
