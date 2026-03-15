@@ -68,28 +68,45 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, vertical_load_kN: float, 
     result.sigma_x_Fw = p * r / (2 * t) * (1 - math.cos(theta_rad)) / math.pi
     
     # 【修复 ERR-06】: 温度应力带有正负号，不能盲目取绝对值，正温差(膨胀受阻)产生压应力(-)
-    alpha = 12e-6         
-    E = 206000           
+    # 【修复 A级-01：材质假联动】动态匹配线膨胀系数，并读取真实的弹性模量
+    E = pipe.elastic_modulus_MPa  
+    if "不锈钢" in pipe.material_grade:
+        alpha = 1.6e-5  # 奥氏体不锈钢线膨胀系数
+    else:
+        alpha = 1.2e-5  # 碳钢线膨胀系数
+
     Delta_T = load.temperature_load_C  
     result.sigma_x_t = -alpha * E * Delta_T 
     result.sigma_x_t_reduced = result.sigma_x_t * zeta
     
     mu = pipe.friction_coefficient  
+    
+    # 【修复 A级-03：正交剪力合成缺失】必须计入水平风荷载产生的支座剪力
+    R_y = vertical_load_kN * pipe.span_m / 2 * 1000  # 竖向支座反力 (N)
+    R_z = horizontal_load_kN * pipe.span_m / 2 * 1000  # 水平支座反力 (N)
+    
     result.sigma_x_friction = mu * R_y / A
     
     # 3. 剪应力计算
     # 【修复 FATAL-05】: 简支梁支座最大剪力 V 应当等于支座反力 R_y
-    V = R_y  
-    result.tau_avg = V / A
+    V_total = math.sqrt(R_y**2 + R_z**2)  # 空间正交总剪力
+    result.tau_avg = V_total / A
     # 【修复 ERR-07】: 圆管截面最大剪应力系数是 2.0
     result.tau_max = 2.0 * result.tau_avg
     
     # 4. 局部应力
+    # 【修复 A级-04：鞍式支承局部应力遗漏】
     support_type = pipe.support_type.value if hasattr(pipe.support_type, 'value') else pipe.support_type
     if support_type == "环式支承":
         result.beta = 0.9
         result.sigma_x_local_out = -1.82 * result.beta * result.sigma_theta_Fw
         result.sigma_x_local_in = 1.82 * result.beta * result.sigma_theta_Fw
+    else:
+        # 默认鞍式支承：依据 CECS 214-2006 鞍座局部压应力近似算法保守估算
+        K_saddle = 0.02 
+        local_stress_magnitude = K_saddle * R_y / (pipe.wall_thickness_mm ** 2)
+        result.sigma_x_local_out = -local_stress_magnitude
+        result.sigma_x_local_in = local_stress_magnitude
     
     # 【修复 FATAL-02】: 彻底删除这句散装的缝合怪公式！强制调用分离截面验算
     midspan_check = check_midspan_stress(result, pipe, load)

@@ -89,7 +89,7 @@ def format_calculation_book(book: CalculationBook) -> str:
 * **跨中竖向弯矩 $M_y$** = $Q_y \\cdot L / 8$ = {lr.工况1_竖向_总计:.2f} × {pipe.span_m} / 8 = **{My:.2f}** kN·m
 
 ### 4.2 水平内力 (风主导)与空间合成
-* **水平设计总荷载 $Q_z$** = $1.4 \\cdot W_k \\cdot D \\cdot L$ = **{lr.工况1_水平荷载:.2f}** kN
+* **水平设计总荷载 $Q_z$** = $1.4 \cdot \psi_w \cdot W_k \cdot D \cdot L$ = **{lr.工况1_水平荷载:.2f}** kN *(注: 风载组合值系数 $\psi_w$={load.psi_wind})*
 * **跨中水平弯矩 $M_z$** = $Q_z \\cdot L / 8$ = {lr.工况1_水平荷载:.2f} × {pipe.span_m} / 8 = **{Mz:.2f}** kN·m
 * **总合成最大弯矩 $M_{{total}}$** = $\\sqrt{{M_y^2 + M_z^2}}$ = **{M_total:.2f}** kN·m
 
