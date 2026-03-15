@@ -17,7 +17,7 @@ class StabilityResult:
         self.formula_refs = {}           # 公式引用
 
 
-def calculate_ring_stability(pipe: PipeModel, vacuum_kN: float = 0) -> StabilityResult:
+def calculate_ring_stability(pipe: PipeModel, vacuum_pressure_MPa: float = 0) -> StabilityResult:
     """
     计算平管环向稳定 - CECS 214-2006 第8.1节
     
@@ -30,13 +30,9 @@ def calculate_ring_stability(pipe: PipeModel, vacuum_kN: float = 0) -> Stability
     r = pipe.inner_radius_mm     # 内半径 mm
     t = pipe.wall_thickness_mm  # 壁厚 mm
     E = 206000                  # 弹性模量 MPa
-    nu = 0.3                    # 泊松比
     
-    # 实际压力 - 稳定计算应该用真空压力，不是内水压！
-    # 内水压是管内介质压力，不会导致屈曲；只有外压（真空）才会
-    # 真空压强 = 真空压力(kN) / 管道截面积
-    inner_area = math.pi * (2 * r) ** 2 / 4 / 1e6  # m²
-    vacuum_pressure_MPa = vacuum_kN * 1000 / (inner_area * 1e6) if inner_area > 0 else 0
+    # 真空失稳是由管外大气压与管内负压形成的径向压强差(MPa)引起
+    # 直接使用真空压力值(MPa)，不需要转换
     result.actual_pressure = vacuum_pressure_MPa
     
     # ========== 1. 临界压力计算 (环向稳定) ==========

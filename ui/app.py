@@ -490,13 +490,17 @@ def main():
             
             deflection_result = calculate_deflection(pipe, load_result)
             
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("跨中挠度 f", f"{deflection_result.deflection_mm:.2f} mm")
+                st.metric("竖向挠度 f_y", f"{deflection_result.deflection_vertical_mm:.2f} mm")
             with col2:
-                st.metric("允许挠度 [f]", f"{deflection_result.allowable_deflection_mm:.2f} mm")
+                st.metric("水平挠度 f_z", f"{deflection_result.deflection_horizontal_mm:.2f} mm")
             with col3:
-                st.metric("挠跨比", f"1/{int(1/deflection_result.deflection_ratio):d}")
+                st.metric("总挠度 f", f"{deflection_result.deflection_mm:.2f} mm")
+            with col4:
+                st.metric("允许挠度 [f]", f"{deflection_result.allowable_deflection_mm:.2f} mm")
+            
+            st.caption(f"挠跨比: 1/{int(1/deflection_result.deflection_ratio):d}")
             
             if deflection_result.is_adequate:
                 st.success("✅ 挠度验算通过!")
@@ -511,7 +515,9 @@ def main():
         if st.button("计算稳定", type="primary", key="stability_btn"):
             pipe = create_pipe(pipe_type, span_m)
             
-            stability_result = calculate_ring_stability(pipe, load_result.vacuum_kN)
+            # 创建临时荷载模型以获取真空压力
+            temp_load = LoadModel()
+            stability_result = calculate_ring_stability(pipe, temp_load.vacuum_pressure_MPa)
             stiffener_spacing = get_stiffener_spacing(pipe, internal_pressure)
             
             col1, col2, col3 = st.columns(3)
@@ -568,7 +574,7 @@ def main():
             horizontal_line_load = load_result.工况1_水平荷载 / pipe.span_m if pipe.span_m > 0 else 0
             stress_result = calculate_stress(pipe, load, vertical_line_load, horizontal_line_load)
             deflection_result = calculate_deflection(pipe, load_result)
-            stability_result = calculate_ring_stability(pipe, load_result.vacuum_kN)
+            stability_result = calculate_ring_stability(pipe, load.vacuum_pressure_MPa)
             
             # 生成计算书
             book = generate_calculation_book(

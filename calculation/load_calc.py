@@ -75,10 +75,10 @@ def calculate_loads(pipe: PipeModel, load: LoadModel) -> LoadResult:
     )
     
     # 竖向可变作用 (分项系数1.4)
-    工况1_竖向可变 = (
-        load.gamma_pressure * internal_pressure_kN +
-        load.gamma_vacuum * load.psi_vacuum * vacuum_kN
-    )
+    # 注意：内水压与真空压力是互斥工况，应取包络(最大值)而非叠加
+    internal_pressure_effect = load.gamma_pressure * internal_pressure_kN
+    vacuum_effect = load.gamma_vacuum * load.psi_vacuum * vacuum_kN
+    工况1_竖向可变 = max(internal_pressure_effect, vacuum_effect)
     
     # 竖向总荷载 (用于计算竖向内力)
     工况1_竖向_总计 = 工况1_竖向永久 + 工况1_竖向可变

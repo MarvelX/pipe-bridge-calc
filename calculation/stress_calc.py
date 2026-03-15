@@ -57,14 +57,6 @@ def calculate_stress(pipe: PipeModel, load: LoadModel,
         vertical_load_kN: 竖向线荷载 (kN/m)
         horizontal_load_kN: 水平线荷载 (kN/m)
     """
-    """
-    计算管道应力 - CECS 214-2006 第7.2节
-    
-    Args:
-        pipe: 管道模型
-        load: 荷载模型
-        reaction_force_N: 支座反力，单位 N
-    """
     result = StressResult()
     
     # ========== 管道几何参数 ==========
@@ -163,8 +155,8 @@ def calculate_stress(pipe: PipeModel, load: LoadModel,
     
     # ========== 3. 剪应力计算 (规范7.2.3) ==========
     
-    # 3.1 平均剪应力 (7.2.3-1): τ = V/A
-    V = R_y / 2  # 剪力 N (简支梁支座处)
+    # 3.1 剪力 V = R (简支梁支座处剪力等于支座反力)
+    V = R_y  # 剪力 N (简支梁支座处)
     result.tau_avg = V / A
     result.formula_refs['tau_avg'] = {
         'formula': 'τ = V / A',
@@ -229,30 +221,28 @@ def calculate_stress(pipe: PipeModel, load: LoadModel,
         result.combined_stress_support = result.combined_stress
     
     # ========== 5. 强度验算 ==========
-    # f' = φf (焊缝折减后设计强度)
-    gamma_0 = load.importance_factor
-    allowable_stress = 0.9 * f_reduced / gamma_0  # 组合荷载效应设计值
+    # 使用重构的分离验算函数
+    midspan_check = check_midspan_stress(result, pipe, load)
+    support_check = check_support_stress(result, pipe, load)
     
+    # 跨中强度验算 - 安全系数 = 允许应力 / 计算应力
+    sigma_combined_max = max(midspan_check["sigma_combined_top"], midspan_check["sigma_combined_bottom"])
+    result.is_safe = midspan_check["is_safe"]
+    result.safety_factor = midspan_check["allowable"] / sigma_combined_max if sigma_combined_max > 0 else 999
+    
+    # 支座处强度验算 (仅环式支承)
+    result.is_safe_support = support_check["is_safe"]
+    result.safety_factor_support = support_check["allowable"] / support_check["tau_with_local"] if support_check["tau_with_local"] > 0 else 999
+    
+    # 保存允许应力到formula_refs供UI显示
     result.formula_refs['check'] = {
         'formula': 'σ ≤ 0.9φf/γ0',
         'ref': 'CECS 214-2006 公式(7.1.1)',
         'desc': '强度验算条件',
-        'allowable': f'{allowable_stress:.1f} MPa',
+        'allowable': f'{midspan_check["allowable"]:.1f} MPa',
         'f_reduced': f'{f_reduced:.1f} MPa',
         'phi': f'{pipe.weld_reduction_coefficient}'
     }
-    
-    # 跨中强度验算
-    result.is_safe = result.combined_stress <= allowable_stress
-    result.safety_factor = allowable_stress / result.combined_stress if result.combined_stress > 0 else 999
-    
-    # 支座处强度验算 (仅环式支承)
-    if support_type == "环式支承":
-        result.is_safe_support = result.combined_stress_support <= allowable_stress
-        result.safety_factor_support = allowable_stress / result.combined_stress_support if result.combined_stress_support > 0 else 999
-    else:
-        result.is_safe_support = result.is_safe
-        result.safety_factor_support = result.safety_factor
     
     return result
 

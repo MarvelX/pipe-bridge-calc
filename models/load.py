@@ -59,9 +59,6 @@ class LoadModel(BaseModel):
     # 真空压力 (规范4.3.3)
     vacuum_pressure_MPa: float = Field(default=0.05, description="真空压力(MPa)")
     
-    # 真空压力 (规范4.3.3)
-    vacuum_pressure_MPa: float = Field(default=0.05, description="真空压力(MPa)")
-    
     # ========== 防腐与附加荷载 (规范4.2) ==========
     anti_corrosion_weight: float = Field(
         default=0.15, 
