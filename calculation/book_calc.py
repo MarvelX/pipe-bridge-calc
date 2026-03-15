@@ -110,8 +110,8 @@ def format_calculation_book(book: CalculationBook) -> str:
 
 ## 第六章 刚度(挠度)与稳定验算
 ### 6.1 挠度计算
-* **实际最大挠度 f** = **{dr.actual_deflection_mm:.2f}** mm
-* **规范允许挠度 [f]** = L/500 = **{dr.allowable_deflection_mm:.1f}** mm (结论: {'✅ 满足' if dr.is_safe else '❌ 超限'})
+* **实际最大挠度 f** = **{dr.deflection_mm:.2f}** mm
+* **规范允许挠度 [f]** = L/500 = **{dr.allowable_deflection_mm:.1f}** mm (结论: {'✅ 满足' if dr.is_adequate else '❌ 超限'})
 
 ### 6.2 环向失稳验算 (负压屈曲)
 * **实际真空负压 p<sub>vac</sub>** = **{stability_result.actual_pressure:.4f}** MPa
