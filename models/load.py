@@ -134,6 +134,15 @@ class LoadResult(BaseModel):
     工况2_水平荷载: float = Field(default=0, description="工况2水平风荷载(kN)")
     工况2_total_kN: float = Field(default=0, description="工况2总荷载(kN)")
     
+    # 风荷载参数 (GB50009)
+    Wk: float = Field(default=0, description="标准风压 (kN/m²)")
+    mu_z: float = Field(default=1.0, description="风压高度变化系数")
+    mu_s: float = Field(default=1.2, description="风荷载体型系数")
+    beta_z: float = Field(default=1.5, description="风振系数")
+    R_max: float = Field(default=0, description="最大支座反力 (kN)")
+    R_min: float = Field(default=0, description="最小支座反力 (kN)")
+    V_z_max: float = Field(default=0, description="最大水平剪力 (kN)")
+    
     # 兼容旧版本
     combination1_total_kN: float = Field(default=0, description="组合1总荷载(kN)")
     combination2_total_kN: float = Field(default=0, description="组合2总荷载(kN)")
