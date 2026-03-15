@@ -515,9 +515,11 @@ def main():
         if st.button("计算稳定", type="primary", key="stability_btn"):
             pipe = create_pipe(pipe_type, span_m)
             
-            # 创建临时荷载模型以获取真空压力
+            # 创建临时荷载模型
             temp_load = LoadModel()
-            stability_result = calculate_ring_stability(pipe, temp_load.vacuum_pressure_MPa)
+            # 计算真空等效荷载 (kN)
+            vacuum_kN = temp_load.vacuum_pressure_MPa * pipe.diameter_mm * pipe.span_m / 1000
+            stability_result = calculate_ring_stability(pipe, vacuum_kN)
             stiffener_spacing = get_stiffener_spacing(pipe, internal_pressure)
             
             col1, col2, col3 = st.columns(3)
@@ -574,7 +576,7 @@ def main():
             horizontal_line_load = load_result.工况1_水平荷载 / pipe.span_m if pipe.span_m > 0 else 0
             stress_result = calculate_stress(pipe, load, vertical_line_load, horizontal_line_load)
             deflection_result = calculate_deflection(pipe, load_result)
-            stability_result = calculate_ring_stability(pipe, load.vacuum_pressure_MPa)
+            stability_result = calculate_ring_stability(pipe, load_result.vacuum_kN)
             
             # 生成计算书
             book = generate_calculation_book(

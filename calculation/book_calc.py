@@ -180,7 +180,7 @@ def format_calculation_book(book: CalculationBook) -> str:
 |------|------|------|
 | 支座反力 R | {lr.工况1_total_kN/2:.2f} | kN |
 | 支座剪力 V | {lr.工况1_total_kN/2:.2f} | kN |
-| 跨中弯矩 M | {lr.工况1_total_kN * pipe.span_m**2 / 8:.2f} | kN·m |
+| 跨中弯矩 M | {lr.工况1_total_kN * pipe.span_m / 8:.2f} | kN·m |
 
 ---
 
