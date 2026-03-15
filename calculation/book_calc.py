@@ -238,7 +238,7 @@ M_{{total}} &= \sqrt{{M_y^2 + M_z^2}} = {M_total:.2f}\ kN\cdot m
 
 \section*{{刚度(挠度)与稳定验算}}
 \begin{{align}}
-f &= {dr.defablection_mm:.2f}\ mm \\
+f &= {dr.deflection_mm:.2f}\ mm \\
 [f] &= L/500 = {dr.allowable_deflection_mm:.1f}\ mm \quad {deflection_conclusion}
 \end{{align}}
 
