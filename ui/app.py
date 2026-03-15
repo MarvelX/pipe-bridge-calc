@@ -41,7 +41,7 @@ def main():
     pipe_type = st.sidebar.selectbox(
         "管道规格 (默认DN1000)",
         options=list(STANDARD_PIPES.keys()),
-        index=6,
+        index=7,
         help="选择标准管道规格 (默认DN1000)"
     )
     
