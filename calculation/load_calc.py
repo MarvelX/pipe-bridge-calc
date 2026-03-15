@@ -96,7 +96,7 @@ def calculate_loads(pipe: PipeModel, load: LoadModel) -> LoadResult:
     # ========== 下部结构提资 ==========
     R_max = 工况1_竖向_总计 / 2  # 满水满载最大垂直下压力
     R_min = (load.gamma_self_weight * self_weight_kN + load.gamma_self_weight * anti_corrosion_kN) / 2  # 空管自重下压力
-    V_z_max = 工况1_水平荷载 / 2  # 最大水平风剪力
+    V_z_max = 工况1_水平 / 2  # 最大水平风剪力
     
     return LoadResult(
         self_weight_per_m=round(self_weight_per_m, 4),
