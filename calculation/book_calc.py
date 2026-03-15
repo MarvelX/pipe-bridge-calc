@@ -175,12 +175,13 @@ def format_calculation_book(book: CalculationBook) -> str:
 - 支座剪力: V = R
 
 ### 4.2 计算结果 (工况1)
+*注：因管桥承受正交空间荷载，需分别计算竖向与水平内力并进行矢量合成。*
 
-| 内力 | 数值 | 单位 |
-|------|------|------|
-| 支座反力 R | {lr.工况1_total_kN/2:.2f} | kN |
-| 支座剪力 V | {lr.工况1_total_kN/2:.2f} | kN |
-| 跨中弯矩 M | {lr.工况1_total_kN * pipe.span_m / 8:.2f} | kN·m |
+| 内力分量 | 支座反力 R (kN) | 支座剪力 V (kN) | 跨中弯矩 M (kN·m) |
+|----------|-----------------|-----------------|-------------------|
+| **竖向 (自重+水重)** | {lr.工况1_竖向_总计/2:.2f} | {lr.工况1_竖向_总计/2:.2f} | {lr.工况1_竖向_总计 * pipe.span_m / 8:.2f} |
+| **水平 (风荷载)** | {lr.工况1_水平荷载/2:.2f} | {lr.工况1_水平荷载/2:.2f} | {lr.工况1_水平荷载 * pipe.span_m / 8:.2f} |
+| **合成包络值** | {((lr.工况1_竖向_总计/2)**2 + (lr.工况1_水平荷载/2)**2)**0.5:.2f} | {((lr.工况1_竖向_总计/2)**2 + (lr.工况1_水平荷载/2)**2)**0.5:.2f} | {((lr.工况1_竖向_总计 * pipe.span_m / 8)**2 + (lr.工况1_水平荷载 * pipe.span_m / 8)**2)**0.5:.2f} |
 
 ---
 
@@ -230,10 +231,10 @@ $$\\sigma_\\theta = \\frac{{p \\cdot r}}{{t}}$$
 
 $$\\sigma = \\sqrt{{\\sigma_x^2 + \\sigma_\\theta^2 - \\sigma_x \\cdot \\sigma_\\theta + 3\\tau^2}}$$
 
-| 位置 | 组合应力 (MPa) | 允许应力 (MPa) | 安全系数 | 验算结果 |
+| 位置 | 最大组合折算应力 (MPa) | 允许应力 (MPa) | 安全系数 | 验算结果 |
 |------|----------------|----------------|----------|----------|
-| 跨中截面 | {sr.combined_stress:.2f} | {0.9*f_reduced:.1f} | {sr.safety_factor:.2f} | {'✅ 通过' if sr.is_safe else '❌ 不通过'} |
-| 支座截面 | {sr.combined_stress_support:.2f} | {0.9*f_reduced:.1f} | {sr.safety_factor_support:.2f} | {'✅ 通过' if sr.is_safe_support else '❌ 不通过'} |
+| 跨中包络(取管顶/管底极值) | {sr.combined_stress:.2f} | {0.9*f_reduced:.1f} | {sr.safety_factor:.2f} | {'✅ 通过' if sr.is_safe else '❌ 不通过'} |
+| 支座截面(含局部应力) | {sr.combined_stress_support:.2f} | {0.9*f_reduced:.1f} | {sr.safety_factor_support:.2f} | {'✅ 通过' if sr.is_safe_support else '❌ 不通过'} |
 
 **强度验算条件**: σ ≤ 0.9φf/γ₀ = 0.9 × {phi:.2f} × {f} / {load.importance_factor} = **{0.9*f_reduced/load.importance_factor:.1f} MPa**
 
@@ -280,7 +281,7 @@ $$\\sigma = \\sqrt{{\\sigma_x^2 + \\sigma_\\theta^2 - \\sigma_x \\cdot \\sigma_\
 
 | 项目 | 数值 | 单位 |
 |------|------|------|
-| 实际内水压 p | {stability_result.actual_pressure:.2f} | MPa |
+| 实际真空负压 p | {stability_result.actual_pressure:.4f} | MPa |
 | 临界压力 pcr | {stability_result.critical_pressure:.2f} | MPa |
 | 允许压力 [p] | {stability_result.allowable_pressure:.2f} | MPa |
 
