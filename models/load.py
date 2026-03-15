@@ -33,9 +33,13 @@ class LoadModel(BaseModel):
         description="设计内水压力(MPa)"
     )
     
-    # 风荷载 (规范4.3.1)
-    wind_load_kN: float = Field(default=0, description="风荷载(kN)")
-    wind_pressure_kPa: float = Field(default=0.5, description="风压标准值(kPa)")
+    # 风荷载 - 改为气象参数自动计算
+    basic_wind_pressure: float = Field(default=0.45, description="基本风压 w0 (kN/m²)")
+    elevation_m: float = Field(default=10.0, description="管道中心标高 z (m)")
+    terrain_category: str = Field(default="B类", description="地面粗糙度类别")
+    
+    # 保留直接输入的风荷载作为备选
+    wind_load_kN: float = Field(default=0, description="风荷载(kN) - 手动输入")
     
     # 温度作用 (规范4.3.4-4.3.5)
     temperature_load_C: float = Field(default=25, description="闭合温差(°C)")

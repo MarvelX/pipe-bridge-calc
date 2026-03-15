@@ -29,6 +29,14 @@ class SupportType(str, Enum):
     RING = "环式支承"        # 环式支承
 
 
+# 材质库
+MATERIAL_DICT = {
+    "Q235B": {"f": 215.0, "E": 206000.0},
+    "Q355B": {"f": 310.0, "E": 206000.0},
+    "S30408(不锈钢)": {"f": 137.0, "E": 193000.0}
+}
+
+
 class PipeModel(BaseModel):
     """管道参数"""
     name: str = Field(default="管道1", description="管道名称")
@@ -59,8 +67,18 @@ class PipeModel(BaseModel):
         description="焊缝类型: 自动焊/手工焊/焊缝质量等级"
     )
     
-    # 钢材参数
-    steel_grade: str = Field(default="Q235", description="钢材牌号")
+    # 钢材参数 - 使用材质库
+    material_grade: str = Field(default="Q235B", description="钢材牌号")
+    design_strength_MPa: float = Field(default=215.0)
+    elastic_modulus_MPa: float = Field(default=206000.0)
+    
+    @model_validator(mode='after')
+    def set_material_properties(self):
+        """自动设置材质属性"""
+        if self.material_grade in MATERIAL_DICT:
+            self.design_strength_MPa = MATERIAL_DICT[self.material_grade]["f"]
+            self.elastic_modulus_MPa = MATERIAL_DICT[self.material_grade]["E"]
+        return self
     
     @model_validator(mode='after')
     def check_physical_boundaries(self):
@@ -114,16 +132,6 @@ class PipeModel(BaseModel):
     def radius_of_gyration_mm(self):
         """截面回转半径 i = √(I/A)"""
         return math.sqrt(self.moment_of_inertia_mm4 / self.cross_section_area_mm2)
-    
-    @property
-    def design_strength_MPa(self) -> float:
-        """钢材设计强度 f (MPa) 根据规范表3.2.1"""
-        strength_map = {
-            "Q235": 215,   # Q235 f=215MPa
-            "Q345": 295,  # Q345 f=295MPa (规范表3.2.1-1)
-            "Q390": 350,  # Q390 f=350MPa
-        }
-        return strength_map.get(self.steel_grade, 215)
     
     @property
     def reduced_strength_MPa(self) -> float:

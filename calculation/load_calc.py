@@ -11,6 +11,22 @@ def get_construction_load_by_diameter(diameter_mm: int) -> float:
     elif diameter_mm <= 700: return 0.75
     else: return 1.0
 
+
+def calculate_wind_profile(w0: float, z: float, terrain: str) -> tuple:
+    """根据 GB50009 计算风压高度变化系数及标准风压"""
+    # 粗糙度截断高度与指数
+    alpha_dict = {"A类": 0.12, "B类": 0.15, "C类": 0.22, "D类": 0.30}
+    alpha = alpha_dict.get(terrain, 0.15)
+    
+    # 高度变化系数 mu_z
+    mu_z = max(1.0, (z / 10.0) ** (2 * alpha))
+    mu_s = 1.2  # 圆管体型系数
+    beta_z = 1.5  # 风振系数
+    
+    Wk = beta_z * mu_s * mu_z * w0
+    return Wk, mu_z, mu_s, beta_z
+
+
 def calculate_loads(pipe: PipeModel, load: LoadModel) -> LoadResult:
     L = pipe.span_m  
     
@@ -38,7 +54,21 @@ def calculate_loads(pipe: PipeModel, load: LoadModel) -> LoadResult:
     
     construction_per_m = get_construction_load_by_diameter(pipe.diameter_mm)
     construction_kN = construction_per_m * L
-    wind_horizontal_kN = load.wind_load_kN
+    
+    # ========== 风荷载自动计算 ==========
+    # 如果手动输入了风荷载则使用手动值，否则自动计算
+    if load.wind_load_kN > 0:
+        wind_horizontal_kN = load.wind_load_kN
+        Wk = load.wind_load_kN / L
+        mu_z, mu_s, beta_z = 0, 0, 0
+    else:
+        # 自动计算风荷载
+        Wk, mu_z, mu_s, beta_z = calculate_wind_profile(
+            load.basic_wind_pressure, 
+            load.elevation_m, 
+            load.terrain_category
+        )
+        wind_horizontal_kN = Wk * (pipe.diameter_mm / 1000.0) * L
     
     # ========== 4. 工况1：基本组合 ==========
     工况1_竖向永久 = (
@@ -63,6 +93,11 @@ def calculate_loads(pipe: PipeModel, load: LoadModel) -> LoadResult:
     工况2_水平 = 0
     工况2_total = 工况2_竖向_总计
     
+    # ========== 下部结构提资 ==========
+    R_max = 工况1_竖向_总计 / 2  # 满水满载最大垂直下压力
+    R_min = (load.gamma_self_weight * self_weight_kN + load.gamma_self_weight * anti_corrosion_kN) / 2  # 空管自重下压力
+    V_z_max = 工况1_水平荷载 / 2  # 最大水平风剪力
+    
     return LoadResult(
         self_weight_per_m=round(self_weight_per_m, 4),
         anti_corrosion_per_m=round(anti_corrosion_per_m, 4),
@@ -86,4 +121,11 @@ def calculate_loads(pipe: PipeModel, load: LoadModel) -> LoadResult:
         工况2_竖向_总计=round(工况2_竖向_总计, 2),
         工况2_水平荷载=round(工况2_水平, 2),
         工况2_total_kN=round(工况2_total, 2),
+        Wk=round(Wk, 3),
+        mu_z=round(mu_z, 3),
+        mu_s=mu_s,
+        beta_z=beta_z,
+        R_max=round(R_max, 2),
+        R_min=round(R_min, 2),
+        V_z_max=round(V_z_max, 2),
     )
