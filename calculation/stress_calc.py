@@ -136,17 +136,27 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, vertical_load_kN: float, 
     
     # 【修复 FATAL-02】: 彻底删除这句散装的缝合怪公式！强制调用分离截面验算
     midspan_check = check_midspan_stress(result, pipe, load)
-    support_check = check_support_stress(result, pipe, load)
-    
+
     # 跨中验算结果赋值
     result.combined_stress = max(midspan_check["sigma_combined_top"], midspan_check["sigma_combined_bottom"])
     result.is_safe = midspan_check["is_safe"]
     result.safety_factor = midspan_check["allowable"] / result.combined_stress if result.combined_stress > 0 else 999
-    
+
     # 支座验算结果赋值
-    result.combined_stress_support = support_check["tau_with_local"]
-    result.is_safe_support = support_check["is_safe"]
-    result.safety_factor_support = support_check["allowable"] / result.combined_stress_support if result.combined_stress_support > 0 else 999
+    allowable_support = 0.9 * pipe.weld_reduction_coefficient * pipe.design_strength_MPa / load.importance_factor
+
+    support_type = pipe.support_type.value if hasattr(pipe.support_type, 'value') else pipe.support_type
+
+    if support_type == "鞍式支承":
+        # 鞍式支承: 直接采用上方 Zick 法得出的最不利折算应力，拦截旧版剪切逻辑的覆盖
+        result.is_safe_support = result.combined_stress_support <= allowable_support
+        result.safety_factor_support = allowable_support / result.combined_stress_support if result.combined_stress_support > 0 else 999
+    else:
+        # 环式支承: 调用传统的剪切截面验算
+        support_check = check_support_stress(result, pipe, load)
+        result.combined_stress_support = support_check["tau_with_local"]
+        result.is_safe_support = support_check["is_safe"]
+        result.safety_factor_support = support_check["allowable"] / result.combined_stress_support if result.combined_stress_support > 0 else 999
 
     return result
 
