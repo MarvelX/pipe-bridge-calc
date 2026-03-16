@@ -95,9 +95,14 @@ def main():
         # 1. 核心计算调用
         load_result = calculate_loads(pipe, load)
 
-        # 【V3.1 升级】分别求解工况1(满水) 和 工况2(空管) 的两组应力包络
-        sr1 = calculate_stress(pipe, load, load_result.工况1_竖向_总计, load_result.工况1_水平荷载)
-        sr2 = calculate_stress(pipe, load, load_result.工况2_竖向_总计, load_result.工况2_水平荷载)
+        # 必须除以跨径转换为线荷载 (kN/m)，避免底层弯矩被放大 L 倍
+        q_y1 = load_result.工况1_竖向_总计 / pipe.span_m
+        q_z1 = load_result.工况1_水平荷载 / pipe.span_m
+        sr1 = calculate_stress(pipe, load, q_y1, q_z1)
+
+        q_y2 = load_result.工况2_竖向_总计 / pipe.span_m
+        q_z2 = load_result.工况2_水平荷载 / pipe.span_m
+        sr2 = calculate_stress(pipe, load, q_y2, q_z2)
 
         deflection_result = calculate_deflection(pipe, load_result)
         vacuum_kN = load.vacuum_pressure_MPa * pipe.diameter_mm * pipe.span_m / 1000
