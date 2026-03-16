@@ -23,7 +23,7 @@ from ui.plot_utils import draw_schematic
 st.set_page_config(page_title="管桥计算器", page_icon="🌉", layout="wide")
 
 def main():
-    st.title("🌉 管桥结构计算器 (V2.0)")
+    st.title("🌉 管桥结构计算器 (V20260316_1354)")
     st.markdown("**符合 CECS 214-2006《自承式给水钢管跨越结构设计规程》**")
 
     # ========== Sidebar 输入参数 ==========
