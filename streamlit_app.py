@@ -40,6 +40,16 @@ def main():
     support_half_angle = st.sidebar.slider("支承半角 θ (°)", 60.0, 180.0, 60.0, 5.0)
     friction_coef = st.sidebar.slider("摩擦系数 μ", 0.1, 0.6, 0.3, 0.05)
 
+    # === V3.0 新增: 动态支座参数面板 ===
+    saddle_angle = 120
+    saddle_width_mm = 300.0
+    has_stiffener = False
+    if support_type == "鞍式支承":
+        st.sidebar.markdown("*(▼ 鞍座详细参数)*")
+        saddle_angle = st.sidebar.selectbox("鞍座包角 2θ", [120, 150], index=0)
+        saddle_width_mm = st.sidebar.number_input("垫板宽度 b (mm)", value=300.0, step=50.0)
+        has_stiffener = st.sidebar.checkbox("设置环向加劲肋", value=False)
+
     # 动态材质与焊缝
     material_grade = st.sidebar.selectbox("钢材牌号", ["Q235B", "Q355B", "S30408(不锈钢)"], index=0)
     weld_type = st.sidebar.selectbox("焊缝类型", ["自动焊", "手工焊", "焊缝质量等级Ⅲ", "焊缝质量等级Ⅱ", "焊缝质量等级Ⅰ"], index=0)
@@ -70,7 +80,7 @@ def main():
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["📐 荷载与内力", "💪 强度计算", "📏 挠度验算", "⚙️ 稳定计算", "📋 计算书"])
 
     # 统一构建模型
-    pipe = create_pipe(pipe_type, span_m, support_type=support_type, friction_coefficient=friction_coef, support_half_angle=support_half_angle, weld_reduction_coefficient=weld_reduction)
+    pipe = create_pipe(pipe_type, span_m, support_type=support_type, friction_coefficient=friction_coef, support_half_angle=support_half_angle, weld_reduction_coefficient=weld_reduction, saddle_angle=saddle_angle, saddle_width_mm=saddle_width_mm, has_stiffener=has_stiffener)
     pipe.material_grade = material_grade
     pipe.wall_thickness_mm = wall_thickness
 

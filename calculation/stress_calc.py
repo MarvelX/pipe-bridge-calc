@@ -29,6 +29,12 @@ class StressResult:
         self.safety_factor = 0
         self.safety_factor_support = 0
         self.formula_refs = {}      
+        
+        # === V3.0 新增: 鞍座危险点跟踪变量 ===
+        self.sigma_xL_bottom = 0.0    # 危险点A: 管底局部轴向压应力
+        self.sigma_thetaL_horn = 0.0  # 危险点B: 鞍角局部环向弯曲应力
+        self.sigma_eq_bottom = 0.0    # 危险点A 折算应力
+        self.sigma_eq_horn = 0.0      # 危险点B 折算应力      
 
 def calculate_stress(pipe: PipeModel, load: LoadModel, vertical_load_kN: float, horizontal_load_kN: float = 0) -> StressResult:
     result = StressResult()
@@ -87,26 +93,46 @@ def calculate_stress(pipe: PipeModel, load: LoadModel, vertical_load_kN: float, 
     
     result.sigma_x_friction = mu * R_y / A
     
-    # 3. 剪应力计算
-    # 【修复 FATAL-05】: 简支梁支座最大剪力 V 应当等于支座反力 R_y
-    V_total = math.sqrt(R_y**2 + R_z**2)  # 空间正交总剪力
-    result.tau_avg = V_total / A
-    # 【修复 ERR-07】: 圆管截面最大剪应力系数是 2.0
-    result.tau_max = 2.0 * result.tau_avg
+    # === V3.0 重构: CECS 214 第7.2节 Zick 局部应力分析法 ===
+    r = pipe.inner_radius_mm + pipe.wall_thickness_mm / 2  # 平均半径
+    t = pipe.wall_thickness_mm
     
-    # 4. 局部应力
-    # 【修复 A级-04：鞍式支承局部应力遗漏】
     support_type = pipe.support_type.value if hasattr(pipe.support_type, 'value') else pipe.support_type
+    
+    # 支座空间总反力 (N)
+    R_total_N = math.sqrt(R_y**2 + R_z**2)
+    
     if support_type == "环式支承":
         result.beta = 0.9
         result.sigma_x_local_out = -1.82 * result.beta * result.sigma_theta_Fw
         result.sigma_x_local_in = 1.82 * result.beta * result.sigma_theta_Fw
-    else:
-        # 默认鞍式支承：依据 CECS 214-2006 鞍座局部压应力近似算法保守估算
-        K_saddle = 0.02 
-        local_stress_magnitude = K_saddle * R_y / (pipe.wall_thickness_mm ** 2)
-        result.sigma_x_local_out = -local_stress_magnitude
-        result.sigma_x_local_in = local_stress_magnitude
+        # 环式支承简化折算
+        result.combined_stress_support = math.sqrt(result.sigma_x_local_out**2 + 3 * (R_total_N/A)**2)
+        result.tau_max = R_total_N / A
+        
+    else:  # 鞍式支承
+        # 1. 查取 CECS 214 规范系数 (K1控制管底压应力, K2控制鞍角弯曲, K3控制剪切)
+        if pipe.saddle_angle == 120:
+            K1, K2, K3 = 0.132, 0.053, 1.17 
+        else: # 150度
+            K1, K2, K3 = 0.079, 0.032, 0.80
+        
+        # 2. 危险点局部应力求解 (MPa)
+        result.sigma_xL_bottom = -K1 * R_total_N / (r * t)     # 管底局部轴向压应力 (负值)
+        result.sigma_thetaL_horn = -K2 * R_total_N / (t**2)    # 鞍角局部环向弯曲应力 (取绝对值参与合成)
+        result.tau_max = K3 * R_total_N / (r * t)              # 赤道最大剪应力
+        
+        # 3. 危险点 A (跨中支座管底) 折算: 整体弯曲 + 温度应力 + 局部轴向压应力
+        # 管底为压应力区，各项叠加
+        sigma_x_bottom_total = result.sigma_x_M_combined + result.sigma_x_t_reduced + abs(result.sigma_xL_bottom)
+        result.sigma_eq_bottom = math.sqrt(sigma_x_bottom_total**2 + result.sigma_theta_Fw**2 - sigma_x_bottom_total*result.sigma_theta_Fw)
+        
+        # 4. 危险点 B (鞍角处) 折算: 局部环向弯曲应力 + 整体内压环向应力
+        sigma_theta_horn_total = result.sigma_theta_Fw + abs(result.sigma_thetaL_horn)
+        result.sigma_eq_horn = math.sqrt(result.sigma_x_t_reduced**2 + sigma_theta_horn_total**2 - result.sigma_x_t_reduced*sigma_theta_horn_total)
+        
+        # 5. 取最不利点作为支座控制应力
+        result.combined_stress_support = max(result.sigma_eq_bottom, result.sigma_eq_horn)
     
     # 【修复 FATAL-02】: 彻底删除这句散装的缝合怪公式！强制调用分离截面验算
     midspan_check = check_midspan_stress(result, pipe, load)

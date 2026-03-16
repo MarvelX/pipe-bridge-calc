@@ -106,6 +106,31 @@ def format_calculation_book(book: CalculationBook) -> str:
 | **跨中最不利截面** | **{sr.combined_stress:.2f}** | {'✅ 满足' if sr.is_safe else '❌ 不合格'} |
 | **支座剪切截面** | **{sr.combined_stress_support:.2f}** | {'✅ 满足' if sr.is_safe_support else '❌ 不合格'} |
 
+### 5.2 支座局部应力验算 (Zick 分析法)
+*依据《CECS 214-2006》第7.2节，针对最不利危险点进行独立折算：*
+
+"""
+    
+    # 动态生成支座验算模块文本
+    support_type_val = pipe.support_type.value if hasattr(pipe.support_type, 'value') else pipe.support_type
+    if support_type_val == "鞍式支承":
+        support_check_md = f"""* **支座参数**: 鞍座包角 $2\\theta$ = {pipe.saddle_angle}°, 垫板宽度 $b$ = {pipe.saddle_width_mm} mm
+* **支座空间总反力 $R$**: $\\sqrt{{R_y^2 + R_z^2}}$ = **{(math.sqrt(lr.R_max**2 + lr.V_z_max**2)):.2f}** kN
+* **危险点A (管底) 局部轴向压应力 $\\sigma_{{xL}}$**: **{sr.sigma_xL_bottom:.2f}** MPa
+* **危险点A (管底) 第四强度折算**: **{sr.sigma_eq_bottom:.2f}** MPa
+* **危险点B (鞍角) 局部环向弯曲应力 $\\sigma_{{\\theta L}}$**: **{sr.sigma_thetaL_horn:.2f}** MPa
+* **危险点B (鞍角) 第四强度折算**: **{sr.sigma_eq_horn:.2f}** MPa
+* **控制组合**: 取大值 **{sr.combined_stress_support:.2f}** MPa (结论: {'✅ 满足' if sr.is_safe_support else '❌ 不合格'})
+"""
+    else:
+        support_check_md = f"""* **支座参数**: 环式支承
+* **支座空间总剪力 $V$**: **{(math.sqrt(lr.R_max**2 + lr.V_z_max**2)):.2f}** kN
+* **支座剪切截面折算应力**: $\\sqrt{{\\sigma_{{local}}^2 + 3\\tau^2}}$ = **{sr.combined_stress_support:.2f}** MPa (结论: {'✅ 满足' if sr.is_safe_support else '❌ 不合格'})
+"""
+    
+    md += support_check_md
+    md += """
+
 ## 第六章 刚度(挠度)与稳定验算
 ### 6.1 挠度计算
 * **实际最大挠度 $f$** = **{dr.deflection_mm:.2f}** mm

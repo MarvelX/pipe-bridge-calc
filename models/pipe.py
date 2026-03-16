@@ -71,6 +71,11 @@ class PipeModel(BaseModel):
     material_grade: str = Field(default="Q235B", description="钢材牌号")
     design_strength_MPa: float = Field(default=215.0)
     elastic_modulus_MPa: float = Field(default=206000.0)
+
+    # === V3.0 新增: 鞍式支座几何参数 ===
+    saddle_angle: int = Field(120, description="鞍座包角 (度)，120 或 150")
+    saddle_width_mm: float = Field(300.0, description="支座垫板顺管向宽度 b (mm)")
+    has_stiffener: bool = Field(False, description="支座处是否设置环向加劲肋")
     
     @model_validator(mode='after')
     def set_material_properties(self):
@@ -162,7 +167,10 @@ STANDARD_PIPES = {
 def create_pipe(pipe_type: str, span_m: float, span_count: int = 1, 
                support_type: str = "鞍式支承", friction_coefficient: float = 0.3,
                support_half_angle: float = 120.0, 
-               weld_reduction_coefficient: float = 0.9) -> PipeModel:
+               weld_reduction_coefficient: float = 0.9,
+               saddle_angle: int = 120,
+               saddle_width_mm: float = 300.0,
+               has_stiffener: bool = False) -> PipeModel:
     """创建标准管道"""
     spec = STANDARD_PIPES.get(pipe_type, STANDARD_PIPES["DN1000"])
     return PipeModel(
@@ -174,5 +182,8 @@ def create_pipe(pipe_type: str, span_m: float, span_count: int = 1,
         support_type=SupportType(support_type) if support_type in [s.value for s in SupportType] else SupportType.SADDLE,
         friction_coefficient=friction_coefficient,
         support_half_angle=support_half_angle,
-        weld_reduction_coefficient=weld_reduction_coefficient
+        weld_reduction_coefficient=weld_reduction_coefficient,
+        saddle_angle=saddle_angle,
+        saddle_width_mm=saddle_width_mm,
+        has_stiffener=has_stiffener
     )
