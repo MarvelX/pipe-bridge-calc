@@ -16,7 +16,7 @@ from calculation.load_calc import calculate_loads
 from calculation.stress_calc import calculate_stress
 from calculation.deflection_calc import calculate_deflection
 from calculation.stability_calc import calculate_ring_stability
-from calculation.book_calc import generate_calculation_book, format_calculation_book, format_calculation_book_latex, generate_pdf
+from calculation.book_calc import generate_calculation_book, format_calculation_book
 from calculation.export_doc import create_word_report
 from ui.plot_utils import draw_schematic
 
@@ -91,11 +91,17 @@ def main():
         temperature_stress_reduction=temp_stress_reduction, importance_factor=importance_factor
     )
 
+    # 【修复1】：引入 session_state，缓存计算状态
     if st.button("🚀 开始计算", type="primary"):
+        st.session_state['is_calculated'] = True
+
+    # 根据 session_state 决定是否展示内容，防止切换 Tab 清空白屏
+    if st.session_state.get('is_calculated', False):
+
         # 1. 核心计算调用
         load_result = calculate_loads(pipe, load)
 
-        # 必须除以跨径转换为线荷载 (kN/m)，避免底层弯矩被放大 L 倍
+        # 【修复2】：将总荷载除以 span_m 转换为线荷载，对齐物理引擎量纲
         q_y1 = load_result.工况1_竖向_总计 / pipe.span_m
         q_z1 = load_result.工况1_水平荷载 / pipe.span_m
         sr1 = calculate_stress(pipe, load, q_y1, q_z1)
@@ -111,8 +117,20 @@ def main():
         # ========== Tab 1: 荷载与内力 ==========
         with tab1:
             st.header("1. 内力组合推导明细")
-            # 原有的 Tab 1 渲染代码保持不变 ... (展示工况1即可)
-            st.info("提示：详细的双工况内力对比，请见导出的 Word 计算书。")
+            # 【修复3】：补充荷载数据的渲染展示
+            col_t1, col_t2 = st.columns(2)
+            with col_t1:
+                st.markdown("#### 竖向荷载分解 (kN)")
+                st.write(f"- 管道自重: {load_result.self_weight_kN:.2f}")
+                st.write(f"- 管内水重: {load_result.water_weight_kN:.2f}")
+                st.write(f"- 防腐附加重: {load_result.anti_corrosion_kN + load_result.additional_kN:.2f}")
+                st.success(f"**满载竖向总计 $Q_y$: {load_result.工况1_竖向_总计:.2f}**")
+            with col_t2:
+                st.markdown("#### 水平风荷载分解 (kN)")
+                st.write(f"- 基本风压 $w_0$: {load.basic_wind_pressure:.2f} kN/m²")
+                st.write(f"- 标准风压 $W_k$: {load_result.Wk:.3f} kN/m²")
+                st.info(f"**水平设计总推力 $Q_z$: {load_result.工况1_水平荷载:.2f}**")
+            st.caption("提示：详细的双工况内力对比，请见导出的 Word 计算书。")
 
         # ========== Tab 2: 强度验算 (双工况升级版) ==========
         with tab2:
@@ -160,28 +178,29 @@ def main():
         with tab3:
             st.header("3. 挠度验算明细")
             st.latex(r"f_{max} = \frac{5 q L^4}{384 E I}")
-            st.info(f"实际计算总挠度: **$f$ = {deflection_result.deflection_mm:.2f} mm**")
-            st.caption(f"允许挠度 [f] = L/500 = {deflection_result.allowable_deflection_mm:.1f} mm")
-            if deflection_result.is_adequate:
-                st.success("✅ 结构刚度满足规范要求！")
-            else:
-                st.error("❌ 挠度过大！")
+            if hasattr(deflection_result, 'deflection_mm'):
+                st.info(f"实际计算总挠度: **$f$ = {deflection_result.deflection_mm:.2f} mm**")
+                st.caption(f"允许挠度 [f] = L/500 = {deflection_result.allowable_deflection_mm:.1f} mm")
+                if deflection_result.is_adequate:
+                    st.success("✅ 结构刚度满足规范要求！")
+                else:
+                    st.error("❌ 挠度过大！")
 
         # ========== Tab 4: 稳定计算 ==========
         with tab4:
             st.header("4. 环向屈曲失稳验算")
             st.latex(r"P_{cr} = 2.6 E \left(\frac{t}{D}\right)^{2.5 \text{或} 2}")
-            st.info(f"管壁临界失稳压力: **$P_{{cr}}$ = {stability_result.critical_pressure:.4f} MPa**")
-            if stability_result.is_stable:
-                st.success("✅ 管桥抗局部屈曲验算通过！")
-            else:
-                st.error("❌ 存在真空抽瘪风险！")
+            if hasattr(stability_result, 'critical_pressure'):
+                st.info(f"管壁临界失稳压力: **$P_{{cr}}$ = {stability_result.critical_pressure:.4f} MPa**")
+                if stability_result.is_stable:
+                    st.success("✅ 管桥抗局部屈曲验算通过！")
+                else:
+                    st.error("❌ 存在真空抽瘪风险！")
 
         # ========== Tab 5: 计算书导出 ==========
         with tab5:
             st.subheader("生成设计计算书")
 
-            # 【修改入参】传入 sr1 和 sr2 两个结果对象
             book = generate_calculation_book(pipe, load, load_result, sr1, sr2, deflection_result, stability_result)
             md_report = format_calculation_book(book)
 
@@ -189,10 +208,9 @@ def main():
 
             st.markdown("---")
             st.markdown("### 导出计算书")
-            
+
             col1, col2 = st.columns(2)
-            
-            # Word下载
+
             with col1:
                 word_file = create_word_report(md_report)
                 st.download_button(
