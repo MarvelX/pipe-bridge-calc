@@ -60,6 +60,7 @@ def main():
     self_weight_amp = st.sidebar.number_input("管道自重放大系数 K", 1.0, 2.0, 1.10, 0.05)
     anti_corrosion = st.sidebar.number_input("防腐层重 (kN/m)", 0.0, 5.0, 0.10, 0.05)
     additional_load = st.sidebar.number_input("附加荷载 (kN/m)", 0.0, 10.0, 0.20, 0.05)
+    live_load = st.sidebar.number_input("检修活载 F (kN/m)", 0.0, 5.0, 0.5, 0.1)
     internal_pressure = st.sidebar.number_input("设计内水压力 p (MPa)", 0.9, 2.0, 1.0, 0.1)
 
     st.sidebar.subheader("🌪️ 3. 自动风荷载参数")
@@ -86,6 +87,7 @@ def main():
 
     load = LoadModel(
         self_weight_amplification=self_weight_amp, anti_corrosion_weight=anti_corrosion, additional_load=additional_load,
+        live_load_kN_m=live_load,
         internal_pressure_MPa=internal_pressure, basic_wind_pressure=basic_wind_pressure, elevation_m=elevation_m, 
         terrain_category=terrain_category, temperature_load_C=temperature_diff, 
         temperature_stress_reduction=temp_stress_reduction, importance_factor=importance_factor
@@ -118,43 +120,45 @@ def main():
 
         # ========== Tab 1: 荷载与内力 ==========
         with tab1:
-            st.header("1. 荷载分布与内力组合推导")
-            # 顶部增加单位提示与跨度说明，统领全局量纲
-            st.markdown(f"*(注：基础线荷载单位为 **kN/m**，跨总荷载单位为 **kN**，当前计算跨度 $L$ = **{pipe.span_m:.2f} m**)*")
+            st.header("1. 荷载分布与内力组合推导 (全透明计算过程)")
+            st.markdown(f"*(当前计算跨度 $L$ = **{pipe.span_m:.2f} m**, 钢材密度 $\\rho$ = 78.5 kN/m³)*")
 
-            col_t1, col_t2 = st.columns(2)
+            st.markdown("### 🧱 一、 永久作用 (恒载 G) 标准值推导")
+            A_m2 = pipe.cross_section_area_mm2 / 1e6
+            st.write(f"1. **管道自重 $G_1$**: $A \\times \\rho \\times K \\times L$ = {A_m2:.4f} m² × 78.5 kN/m³ × {load.self_weight_amplification} × {pipe.span_m} m = **{load_result.self_weight_kN:.2f} kN**")
 
-            with col_t1:
-                st.markdown("#### 🔽 竖向荷载分解 (重力/活载)")
-                # 展现从 线荷载 -> 总荷载 的计算过程
-                st.markdown(f"- **管道自重 $G_{{pipe}}$**: {load_result.self_weight_per_m:.2f} kN/m × {pipe.span_m} m = **{load_result.self_weight_kN:.2f} kN**")
-                st.markdown(f"- **管内水重 $G_{{water}}$**: {load_result.water_weight_per_m:.2f} kN/m × {pipe.span_m} m = **{load_result.water_weight_kN:.2f} kN**")
-                st.markdown(f"- **防腐层重 $G_{{anti}}$**: {load_result.anti_corrosion_per_m:.2f} kN/m × {pipe.span_m} m = **{load_result.anti_corrosion_kN:.2f} kN**")
-                st.markdown(f"- **附加活载 $Q_{{live}}$**: {load_result.additional_per_m:.2f} kN/m × {pipe.span_m} m = **{load_result.additional_kN:.2f} kN**")
+            A_w = math.pi * (pipe.inner_radius_mm/1000)**2
+            st.write(f"2. **管内水重 $G_w$**: $A_{{内}} \\times \\rho_{{水}} \\times L$ = {A_w:.4f} m² × 9.81 kN/m³ × {pipe.span_m} m = **{load_result.water_weight_kN:.2f} kN**")
 
-                st.markdown("---")
-                st.markdown("##### 📦 组合 I (运行态) 竖向总设计值")
-                st.latex(r"Q_{y1} = 1.2(G_{pipe}+G_{water}+G_{anti}) + 1.4 Q_{live}")
-                Q_G = load_result.self_weight_kN + load_result.water_weight_kN + load_result.anti_corrosion_kN
-                st.markdown(f"= 1.2 × ({Q_G:.2f}) + 1.4 × ({load_result.additional_kN:.2f})")
-                st.success(f"**= {load_result.工况1_竖向_总计:.2f} kN**")
+            st.write(f"3. **防腐层重 $G_2$**: $q_{{anti}} \\times L$ = {load.anti_corrosion_weight:.2f} kN/m × {pipe.span_m} m = **{load_result.anti_corrosion_kN:.2f} kN**")
 
-            with col_t2:
-                st.markdown("#### 💨 水平风荷载分解 (量纲转化)")
-                # 展现从 面荷载 -> 线荷载 -> 总荷载 的严密降维推导过程
-                st.markdown(f"- **基本风压 $w_0$**: **{load.basic_wind_pressure:.2f} kN/m²**")
-                st.markdown(f"- **标准风压 $W_k$**: $\\beta_z \\mu_s \\mu_z w_0$ = **{load_result.Wk:.3f} kN/m²**")
+            st.write(f"4. **附加恒载 $G_{{add}}$**: $q_{{add}} \\times L$ = {load.additional_load:.2f} kN/m × {pipe.span_m} m = **{load_result.additional_kN:.2f} kN**")
 
-                D_m = pipe.diameter_mm / 1000
-                q_w = load_result.wind_horizontal_kN / pipe.span_m
-                st.markdown(f"- **风线荷载 $q_w$**: $W_k \\times D$ = {load_result.Wk:.3f} × {D_m:.3f} m = **{q_w:.2f} kN/m**")
-                st.markdown(f"- **风总标准值 $Q_w$**: $q_w \\times L$ = {q_w:.2f} × {pipe.span_m} m = **{load_result.wind_horizontal_kN:.2f} kN**")
+            sum_G = load_result.self_weight_kN + load_result.water_weight_kN + load_result.anti_corrosion_kN + load_result.additional_kN
+            st.info(f"**▶ 永久作用跨总推力 $\\Sigma G$ = {sum_G:.2f} kN**")
 
-                st.markdown("---")
-                st.markdown("##### 🌪️ 组合 II (极端态) 水平总设计值")
-                st.latex(r"Q_{z2} = 1.4 \times Q_w")
-                st.markdown(f"= 1.4 × {load_result.wind_horizontal_kN:.2f}")
-                st.info(f"**= {load_result.工况2_水平荷载:.2f} kN**")
+            st.markdown("### 🌪️ 二、 可变作用 (活载/风载 F) 标准值推导")
+            st.write(f"1. **检修活载 $F_{{live}}$**: $q_{{live}} \\times L$ = {load.live_load_kN_m:.2f} kN/m × {pipe.span_m} m = **{getattr(load_result, 'live_load_kN', 0.0):.2f} kN**")
+
+            D_m = pipe.diameter_mm / 1000
+            st.write(f"2. **水平风荷载 $F_{{qw}}$**: 面风压 $W_k$ × 外径 $D$ × 跨度 $L$ = {load_result.Wk:.3f} kN/m² × {D_m:.3f} m × {pipe.span_m} m = **{load_result.wind_horizontal_kN:.2f} kN**")
+
+            st.caption("注：内水压力(Fwd)与温度作用(Ft)在微观截面产生内部应力，不产生宏观支座推力，已自动传入【强度计算】Tab。")
+
+            st.markdown("### 📦 三、 宏观外部推力组合设计值 (按 CECS 214)")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("#### 🌪️ 工况 1: 极端台风态 (有风无活载)")
+                st.latex(r"Q_{y1} \text{ (竖向)} = 1.2 \Sigma G")
+                st.write(f"= 1.2 × {sum_G:.2f} = **{load_result.工况1_竖向_总计:.2f} kN**")
+                st.latex(r"Q_{z1} \text{ (水平)} = 1.4 F_{qw}")
+                st.write(f"= 1.4 × {load_result.wind_horizontal_kN:.2f} = **{load_result.工况1_水平荷载:.2f} kN**")
+            with col2:
+                st.markdown("#### 👷‍♂️ 工况 2: 运行检修态 (有活载无风)")
+                st.latex(r"Q_{y2} \text{ (竖向)} = 1.2 \Sigma G + 1.4 F_{live}")
+                st.write(f"= 1.2 × {sum_G:.2f} + 1.4 × {getattr(load_result, 'live_load_kN', 0.0):.2f} = **{load_result.工况2_竖向_总计:.2f} kN**")
+                st.latex(r"Q_{z2} \text{ (水平)} = 0")
+                st.write(f"= **0.00 kN** (本工况不计风载)")
 
             st.caption("📌 提示：依据《CECS 214》表5.2.7，内压与温度作用不产生外部宏观推力，它们将直接作为内部应力参与后续的截面强度折算（详情见强度验算Tab）。")
 

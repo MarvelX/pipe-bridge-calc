@@ -72,6 +72,8 @@ class LoadModel(BaseModel):
         default=0.5, 
         description="附加荷载(kN/m) (含保温层、冰雪等)"
     )
+    # === 新增检修活载字段 ===
+    live_load_kN_m: float = Field(0.5, description="施工安装或检修活载 (kN/m)")
     
     # ========== 分项系数 (根据规范) ==========
     gamma_self_weight: float = Field(default=1.2, description="自重分项系数 γG")

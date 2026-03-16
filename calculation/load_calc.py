@@ -70,36 +70,34 @@ def calculate_loads(pipe: PipeModel, load: LoadModel) -> LoadResult:
         )
         wind_horizontal_kN = Wk * (pipe.diameter_mm / 1000.0) * L
     
-    # ========== 4. 工况1：基本组合 ==========
-    工况1_竖向永久 = (
-        load.gamma_self_weight * self_weight_kN +
-        load.gamma_self_weight * anti_corrosion_kN +
-        load.gamma_self_weight * additional_kN +
-        load.gamma_water * water_weight_kN
-    )
-    
-    # 【修复 FATAL-01】: 内水压和真空压是径向膨胀/收缩力，绝对不能作为竖向重力使管桥下弯！
-    # 正常基本组合下，没有竖向可变重力荷载（雪荷载这里暂未考虑）
-    工况1_竖向可变 = 0
-    工况1_竖向_总计 = 工况1_竖向永久 + 工况1_竖向可变
-    工况1_水平 = load.gamma_wind * load.psi_wind * wind_horizontal_kN
-    工况1_total = 工况1_竖向_总计 
-    
-    # ========== 5. 工况2：施工检修组合 ==========
-    工况2_竖向永久 = 工况1_竖向永久
-    # 施工荷载是真正的向下重力，必须计入竖向可变
-    工况2_竖向可变 = load.gamma_construction * construction_kN
-    工况2_竖向_总计 = 工况2_竖向永久 + 工况2_竖向可变
-    工况2_水平 = 0
-    工况2_total = 工况2_竖向_总计
-    
-    # ========== 下部结构提资 ==========
-    R_max = 工况1_竖向_总计 / 2  # 满水满载最大垂直下压力
-    # 【修复 A级-02：抗倾覆极值】有利荷载的分项系数必须取 1.0
-    R_min = (1.0 * self_weight_kN + 1.0 * anti_corrosion_kN) / 2  # 空管自重下压力
-    V_z_max = 工况1_水平 / 2  # 最大水平风剪力
-    
-    return LoadResult(
+    # === 新增：活载计算 ===
+    live_load_kN = load.live_load_kN_m * pipe.span_m
+
+    # ==========================
+    # 宏观外部推力组合 (不含温度和内压)
+    # ==========================
+    # 永久作用总和 (G)
+    sum_G = self_weight_kN + water_weight_kN + anti_corrosion_kN + additional_kN
+
+    # 工况 1: 极端台风态 (有风无活载)
+    # 竖向 Qy1 = 1.2 * ΣG
+    工况1_竖向_总计 = 1.2 * sum_G
+    # 水平 Qz1 = 1.4 * Fqw (风载)
+    工况1_水平 = 1.4 * wind_horizontal_kN
+
+    # 工况 2: 运行检修态 (有活载无风)
+    # 竖向 Qy2 = 1.2 * ΣG + 1.4 * Flive
+    工况2_竖向_总计 = 1.2 * sum_G + 1.4 * live_load_kN
+    # 水平 Qz2 = 0
+    工况2_水平 = 0.0
+
+    # 提取下部结构提资极值
+    R_max = max(工况1_竖向_总计, 工况2_竖向_总计) / 2  
+    R_min = (1.0 * self_weight_kN + 1.0 * anti_corrosion_kN + 1.0 * additional_kN) / 2 # 空管自重下压力
+    V_z_max = 工况1_水平 / 2
+
+    # 将活载加入返回结果中，方便 UI 调用
+    result = LoadResult(
         self_weight_per_m=round(self_weight_per_m, 4),
         anti_corrosion_per_m=round(anti_corrosion_per_m, 4),
         additional_per_m=round(additional_per_m, 4),
@@ -112,16 +110,16 @@ def calculate_loads(pipe: PipeModel, load: LoadModel) -> LoadResult:
         internal_pressure_kN=round(internal_pressure_kN, 2),
         construction_kN=round(construction_kN, 2),
         vacuum_kN=round(vacuum_kN, 2),
-        工况1_竖向永久=round(工况1_竖向永久, 2),
-        工况1_竖向可变=round(工况1_竖向可变, 2),
+        工况1_竖向永久=round(sum_G, 2),
+        工况1_竖向可变=round(0, 2),
         工况1_竖向_总计=round(工况1_竖向_总计, 2),
         工况1_水平荷载=round(工况1_水平, 2),
-        工况1_total_kN=round(工况1_total, 2),
-        工况2_竖向永久=round(工况2_竖向永久, 2),
-        工况2_竖向可变=round(工况2_竖向可变, 2),
+        工况1_total_kN=round(工况1_竖向_总计, 2),
+        工况2_竖向永久=round(sum_G, 2),
+        工况2_竖向可变=round(live_load_kN, 2),
         工况2_竖向_总计=round(工况2_竖向_总计, 2),
         工况2_水平荷载=round(工况2_水平, 2),
-        工况2_total_kN=round(工况2_total, 2),
+        工况2_total_kN=round(工况2_竖向_总计, 2),
         Wk=round(Wk, 3),
         mu_z=round(mu_z, 3),
         mu_s=mu_s,
@@ -130,3 +128,5 @@ def calculate_loads(pipe: PipeModel, load: LoadModel) -> LoadResult:
         R_min=round(R_min, 2),
         V_z_max=round(V_z_max, 2),
     )
+    setattr(result, 'live_load_kN', round(live_load_kN, 2)) # 动态注入活载结果
+    return result
