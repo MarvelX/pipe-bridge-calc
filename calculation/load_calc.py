@@ -127,6 +127,6 @@ def calculate_loads(pipe: PipeModel, load: LoadModel) -> LoadResult:
         R_max=round(R_max, 2),
         R_min=round(R_min, 2),
         V_z_max=round(V_z_max, 2),
+        live_load_kN=round(live_load_kN, 2),
     )
-    setattr(result, 'live_load_kN', round(live_load_kN, 2)) # 动态注入活载结果
     return result

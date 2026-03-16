@@ -121,6 +121,7 @@ class LoadResult(BaseModel):
     temperature_kN: float = Field(default=0, description="温度作用(kN)")
     construction_kN: float = Field(default=0, description="施工检修荷载标准值(kN)")
     vacuum_kN: float = Field(default=0, description="真空压力(kN)")
+    live_load_kN: float = Field(default=0, description="检修活载(kN)")
     
     # 工况1: 基本组合
     工况1_竖向永久: float = Field(default=0, description="工况1竖向永久作用(kN)")
