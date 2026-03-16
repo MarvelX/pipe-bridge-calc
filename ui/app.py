@@ -118,21 +118,45 @@ def main():
 
         # ========== Tab 1: 荷载与内力 ==========
         with tab1:
-            st.header("1. 内力组合推导明细")
-            # 【修复3】：补充荷载数据的渲染展示
+            st.header("1. 荷载分布与内力组合推导")
+            # 顶部增加单位提示与跨度说明，统领全局量纲
+            st.markdown(f"*(注：基础线荷载单位为 **kN/m**，跨总荷载单位为 **kN**，当前计算跨度 $L$ = **{pipe.span_m:.2f} m**)*")
+
             col_t1, col_t2 = st.columns(2)
+
             with col_t1:
-                st.markdown("#### 竖向荷载分解 (kN)")
-                st.write(f"- 管道自重: {load_result.self_weight_kN:.2f}")
-                st.write(f"- 管内水重: {load_result.water_weight_kN:.2f}")
-                st.write(f"- 防腐附加重: {load_result.anti_corrosion_kN + load_result.additional_kN:.2f}")
-                st.success(f"**满载竖向总计 $Q_y$: {load_result.工况1_竖向_总计:.2f}**")
+                st.markdown("#### 🔽 竖向荷载分解 (重力/活载)")
+                # 展现从 线荷载 -> 总荷载 的计算过程
+                st.markdown(f"- **管道自重 $G_{{pipe}}$**: {load_result.self_weight_per_m:.2f} kN/m × {pipe.span_m} m = **{load_result.self_weight_kN:.2f} kN**")
+                st.markdown(f"- **管内水重 $G_{{water}}$**: {load_result.water_weight_per_m:.2f} kN/m × {pipe.span_m} m = **{load_result.water_weight_kN:.2f} kN**")
+                st.markdown(f"- **防腐层重 $G_{{anti}}$**: {load_result.anti_corrosion_per_m:.2f} kN/m × {pipe.span_m} m = **{load_result.anti_corrosion_kN:.2f} kN**")
+                st.markdown(f"- **附加活载 $Q_{{live}}$**: {load_result.additional_per_m:.2f} kN/m × {pipe.span_m} m = **{load_result.additional_kN:.2f} kN**")
+
+                st.markdown("---")
+                st.markdown("##### 📦 组合 I (运行态) 竖向总设计值")
+                st.latex(r"Q_{y1} = 1.2(G_{pipe}+G_{water}+G_{anti}) + 1.4 Q_{live}")
+                Q_G = load_result.self_weight_kN + load_result.water_weight_kN + load_result.anti_corrosion_kN
+                st.markdown(f"= 1.2 × ({Q_G:.2f}) + 1.4 × ({load_result.additional_kN:.2f})")
+                st.success(f"**= {load_result.工况1_竖向_总计:.2f} kN**")
+
             with col_t2:
-                st.markdown("#### 水平风荷载分解 (kN)")
-                st.write(f"- 基本风压 $w_0$: {load.basic_wind_pressure:.2f} kN/m²")
-                st.write(f"- 标准风压 $W_k$: {load_result.Wk:.3f} kN/m²")
-                st.info(f"**水平设计总推力 $Q_z$: {load_result.工况1_水平荷载:.2f}**")
-            st.caption("提示：详细的双工况内力对比，请见导出的 Word 计算书。")
+                st.markdown("#### 💨 水平风荷载分解 (量纲转化)")
+                # 展现从 面荷载 -> 线荷载 -> 总荷载 的严密降维推导过程
+                st.markdown(f"- **基本风压 $w_0$**: **{load.basic_wind_pressure:.2f} kN/m²**")
+                st.markdown(f"- **标准风压 $W_k$**: $\\beta_z \\mu_s \\mu_z w_0$ = **{load_result.Wk:.3f} kN/m²**")
+
+                D_m = pipe.diameter_mm / 1000
+                q_w = load_result.wind_horizontal_kN / pipe.span_m
+                st.markdown(f"- **风线荷载 $q_w$**: $W_k \\times D$ = {load_result.Wk:.3f} × {D_m:.3f} m = **{q_w:.2f} kN/m**")
+                st.markdown(f"- **风总标准值 $Q_w$**: $q_w \\times L$ = {q_w:.2f} × {pipe.span_m} m = **{load_result.wind_horizontal_kN:.2f} kN**")
+
+                st.markdown("---")
+                st.markdown("##### 🌪️ 组合 II (极端态) 水平总设计值")
+                st.latex(r"Q_{z2} = 1.4 \times Q_w")
+                st.markdown(f"= 1.4 × {load_result.wind_horizontal_kN:.2f}")
+                st.info(f"**= {load_result.工况2_水平荷载:.2f} kN**")
+
+            st.caption("📌 提示：依据《CECS 214》表5.2.7，内压与温度作用不产生外部宏观推力，它们将直接作为内部应力参与后续的截面强度折算（详情见强度验算Tab）。")
 
         # ========== Tab 2: 强度验算 (双工况升级版) ==========
         with tab2:
