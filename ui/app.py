@@ -194,16 +194,8 @@ def main():
                     label="📄 下载 Word (.docx)",
                     data=word_file,
                     file_name=f"管桥计算书_DN{int(pipe.diameter_mm)}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-            
-            # Word下载
-            with col1:
-                st.download_button(
-                    label="📄 下载 Word (.docx)",
-                    data=word_file,
-                    file_name=f"管桥计算书_DN{int(pipe.diameter_mm)}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    key="download_word"
                 )
 
 if __name__ == "__main__":
