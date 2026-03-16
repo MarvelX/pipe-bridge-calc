@@ -101,11 +101,13 @@ def main():
         # 1. 核心计算调用
         load_result = calculate_loads(pipe, load)
 
-        # 【修复2】：将总荷载除以 span_m 转换为线荷载，对齐物理引擎量纲
+        # 【纠正规范对齐】组合 I：包含满水、活载，内压，温度 (无风载)
+        # 绝不能屏蔽温度！直接用原始的 load 对象进行应力求解
         q_y1 = load_result.工况1_竖向_总计 / pipe.span_m
-        q_z1 = load_result.工况1_水平荷载 / pipe.span_m
+        q_z1 = 0.0  # 组合I无风载，水平力为0
         sr1 = calculate_stress(pipe, load, q_y1, q_z1)
 
+        # 【纠正规范对齐】组合 II：包含满水，风载、内压，温度 (无活载)
         q_y2 = load_result.工况2_竖向_总计 / pipe.span_m
         q_z2 = load_result.工况2_水平荷载 / pipe.span_m
         sr2 = calculate_stress(pipe, load, q_y2, q_z2)
